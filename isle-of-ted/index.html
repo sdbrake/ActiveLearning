@@ -392,6 +392,54 @@
   .result-item .value { font-weight: 600; color: var(--text); }
   .result-item .value.positive { color: var(--success); }
   .result-item .value.negative { color: var(--danger); }
+
+  /* Pirate result panels */
+  .result-pirate {
+    text-align: center;
+    padding: 16px 12px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+  }
+  .result-pirate.raided {
+    background: rgba(204, 68, 68, 0.15);
+    border: 1px solid rgba(204, 68, 68, 0.4);
+  }
+  .result-pirate.defended {
+    background: rgba(90, 138, 74, 0.15);
+    border: 1px solid rgba(90, 138, 74, 0.4);
+  }
+  .result-pirate.other-raided {
+    background: rgba(212, 168, 84, 0.1);
+    border: 1px solid rgba(212, 168, 84, 0.25);
+  }
+  .result-pirate.peaceful {
+    background: rgba(106, 123, 139, 0.1);
+    border: 1px solid rgba(106, 123, 139, 0.2);
+  }
+  .pirate-icon {
+    font-size: 2.5rem;
+    margin-bottom: 6px;
+  }
+  .pirate-headline {
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-bottom: 4px;
+  }
+  .raided .pirate-headline { color: var(--danger); }
+  .defended .pirate-headline { color: var(--success); }
+  .other-raided .pirate-headline { color: var(--gold); }
+  .pirate-detail {
+    font-size: 0.9rem;
+    color: var(--text-dim);
+  }
+  .pirate-loss {
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--danger);
+    margin-top: 6px;
+    font-family: 'Cinzel', serif;
+  }
   .continue-btn {
     margin-top: 18px;
     padding: 14px 32px;
@@ -693,37 +741,80 @@ function renderWaitingHTML() {
 
 function renderResults(oldState, newState) {
   stopPolling();
+  resolveTeamFromState(newState);
   const prevResources = oldState.resources ?? 0;
   const newResources = newState.resources ?? 0;
-  const diff = newResources - prevResources;
   const turn = oldState.turn ?? 1;
+  const lt = newState.lastTurn;
 
-  // Build result items from events if available
-  let eventsHTML = '';
-  if (newState.events && newState.events.length > 0) {
-    eventsHTML = newState.events.map(e => {
-      const cls = e.value > 0 ? 'positive' : e.value < 0 ? 'negative' : '';
-      const prefix = e.value > 0 ? '+' : '';
-      return `<div class="result-item">
-        <span class="label">${e.label}</span>
-        <span class="value ${cls}">${prefix}${e.value}</span>
-      </div>`;
-    }).join('');
+  let pirateHTML = '';
+  let tradeHTML = '';
+  let roadHTML = '';
+
+  if (lt) {
+    // Pirate section — always shown prominently
+    if (lt.pirateCount > 0) {
+      if (lt.wasTargeted && !lt.raidDefeated) {
+        // THIS team was raided
+        pirateHTML = `
+          <div class="result-pirate raided fade-in">
+            <div class="pirate-icon">🏴‍☠️💥</div>
+            <div class="pirate-headline">You have been raided by pirates!</div>
+            <div class="pirate-detail">${lt.pirateCount} ship(s) attacked ${lt.raidTargetName}. ${lt.raidLoss} resource(s) plundered!</div>
+            <div class="pirate-loss">−${lt.raidLoss}</div>
+          </div>`;
+      } else if (lt.raidDefeated) {
+        // Pirates were defeated
+        pirateHTML = `
+          <div class="result-pirate defended fade-in">
+            <div class="pirate-icon">⚔️🛡️</div>
+            <div class="pirate-headline">Pirates attacked ${lt.raidTargetName}, but were defeated!</div>
+            <div class="pirate-detail">${lt.pirateCount} ship(s) repelled by the island's defense.</div>
+          </div>`;
+      } else {
+        // Another team was raided
+        pirateHTML = `
+          <div class="result-pirate other-raided fade-in">
+            <div class="pirate-icon">🏴‍☠️</div>
+            <div class="pirate-headline">${lt.raidTargetName} was raided by pirates!</div>
+            <div class="pirate-detail">${lt.pirateCount} ship(s) attacked. ${lt.raidDamage} got through the defenses.</div>
+          </div>`;
+      }
+    } else {
+      pirateHTML = `
+        <div class="result-pirate peaceful fade-in">
+          <div class="pirate-icon">🌊</div>
+          <div class="pirate-headline">No pirates this turn</div>
+          <div class="pirate-detail">The seas were calm.</div>
+        </div>`;
+    }
+
+    // Trade income
+    if (lt.tradeIncome > 0) {
+      tradeHTML = `<div class="result-item"><span class="label">🛤️ Trade Income</span><span class="value positive">+${lt.tradeIncome}</span></div>`;
+    }
+
+    // Road events
+    if (lt.roadCollapsed) {
+      roadHTML = `<div class="result-item"><span class="label">⚠️ Roads Collapsed!</span><span class="value negative">Unmaintained</span></div>`;
+    } else if (lt.roadBuilt && oldState.roadBuilt !== true) {
+      roadHTML = `<div class="result-item"><span class="label">🎉 Roads Completed!</span><span class="value positive">Trade Open</span></div>`;
+    }
   } else {
-    // Fallback: just show net change
+    // No lastTurn data — fallback
+    const diff = newResources - prevResources;
     const cls = diff > 0 ? 'positive' : diff < 0 ? 'negative' : '';
     const prefix = diff > 0 ? '+' : '';
-    eventsHTML = `<div class="result-item">
-      <span class="label">Net Change</span>
-      <span class="value ${cls}">${prefix}${diff}</span>
-    </div>`;
+    pirateHTML = `<div class="result-item"><span class="label">Net Change</span><span class="value ${cls}">${prefix}${diff}</span></div>`;
   }
 
   const formArea = document.getElementById('form-area');
   formArea.innerHTML = `
     <div class="results-panel fade-in">
       <div class="results-title">📜 Turn ${turn} Results</div>
-      ${eventsHTML}
+      ${pirateHTML}
+      ${roadHTML}
+      ${tradeHTML}
       <div class="result-item" style="border-top:1px solid rgba(212,168,84,0.15);padding-top:12px;margin-top:4px;">
         <span class="label" style="font-weight:600;color:var(--text);">New Treasury</span>
         <span class="value" style="font-size:1.2rem;color:var(--gold);">💰 ${newResources}</span>
