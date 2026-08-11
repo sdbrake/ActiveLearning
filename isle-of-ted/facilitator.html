@@ -1091,8 +1091,9 @@ function confirmAction(title, msg, callback) {
   document.getElementById('confirm-msg').textContent = msg;
   confirmCallback = callback;
   document.getElementById('confirm-action-btn').onclick = () => {
+    const cb = confirmCallback;
     closeConfirm();
-    if (confirmCallback) confirmCallback();
+    if (cb) cb();
   };
   document.getElementById('confirm-overlay').classList.add('active');
 }
