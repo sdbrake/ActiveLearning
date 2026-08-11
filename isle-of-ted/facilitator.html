@@ -694,6 +694,7 @@
     <div class="section-title"><span class="icon">⚙️</span> Game Controls</div>
     <div class="game-controls">
       <button class="btn btn-outline" onclick="confirmAction('New Game', 'Start a brand new game? All current progress will be preserved in history.', newGame)">🆕 New Game</button>
+      <button class="btn btn-pirate" onclick="confirmAction('End Game', 'End the game and show the scoreboard to all teams? This cannot be undone (use Reset to start over).', endGame)">🏆 End Game</button>
       <button class="btn btn-danger" onclick="confirmAction('Reset Game', 'This will permanently erase ALL game data. This cannot be undone!', resetGame)">🗑️ Reset Game</button>
       <button class="btn btn-outline btn-sm" onclick="forceRefresh()">🔄 Force Refresh</button>
       <button class="btn btn-outline btn-sm" onclick="logout()">🔒 Logout</button>
@@ -1164,6 +1165,15 @@ async function forceRefresh() {
 // TEAM TOKENS / LINKS
 // ════════════════════════════════════════════════════
 const BASE_GAME_URL = window.location.origin + window.location.pathname.replace('facilitator.html', '');
+
+async function endGame() {
+  try {
+    const data = await apiCall('endGame', {});
+    if (!data.success) { toast('Failed: ' + (data.error || ''), true); return; }
+    toast('🏆 Game ended! Scoreboard is now visible to all teams.');
+    await refreshDashboard();
+  } catch(e) { toast('Error: ' + e.message, true); }
+}
 
 async function loadTokens() {
   try {
