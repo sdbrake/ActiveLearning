@@ -1158,7 +1158,11 @@ const BASE_GAME_URL = window.location.origin + window.location.pathname.replace(
 async function loadTokens() {
   try {
     const data = await apiCall('getTokens', {});
-    if (!data.success) { toast('Failed to load tokens: ' + (data.error || ''), true); return; }
+    if (!data.success) { toast('Failed to load tokens: ' + (data.error || 'unknown error'), true); return; }
+    if (!data.teams || Object.keys(data.teams).length === 0) {
+      document.getElementById('token-grid').innerHTML = '<p style="color:var(--text-muted);">No tokens found. Click "Regenerate All Tokens" to create them.</p>';
+      return;
+    }
     renderTokens(data.teams);
   } catch (e) {
     toast('Error loading tokens: ' + e.message, true);
