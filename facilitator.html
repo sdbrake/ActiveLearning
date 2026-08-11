@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Isle of Ted — Facilitator Control Panel</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-dark: #1a1a2e;
+    --bg-card: #16213e;
+    --bg-surface: #0f3460;
+    --gold: #d4a843;
+    --gold-light: #f0d78c;
+    --gold-dim: #9a7b2f;
+    --text: #e8e8e8;
+    --text-muted: #8a8a9a;
+    --danger: #c0392b;
+    --danger-hover: #e74c3c;
+    --success: #27ae60;
+    --pirate-red: #8b0000;
+
+    --amaurot: #8B4513;
+    --bensalem: #6A7B8B;
+    --civitas: #D2B48C;
+    --doriath: #8B8B00;
+    --eldalonde: #2E8B57;
+    --forostar: #7B337D;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg-dark);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+
+  h1, h2, h3, h4 { font-family: 'Cinzel', serif; }
+
+  /* ── Login Overlay ── */
+  #login-overlay {
+    position: fixed; inset: 0;
+    background: var(--bg-dark);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999;
+  }
+  .login-box {
+    background: var(--bg-card);
+    border: 2px solid var(--gold-dim);
+    border-radius: 12px;
+    padding: 48px 40px;
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+  }
+  .login-box h1 {
+    color: var(--gold);
+    font-size: 1.8rem;
+    margin-bottom: 8px;
+  }
+  .login-box p {
+    color: var(--text-muted);
+    margin-bottom: 24px;
+    font-size: 0.9rem;
+  }
+  .login-box input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--gold-dim);
+    border-radius: 8px;
+    background: var(--bg-dark);
+    color: var(--text);
+    font-size: 1rem;
+    margin-bottom: 16px;
+    text-align: center;
+    letter-spacing: 2px;
+  }
+  .login-box input:focus { outline: none; border-color: var(--gold); }
+  .login-error {
+    color: var(--danger-hover);
+    font-size: 0.85rem;
+    margin-bottom: 12px;
+    min-height: 1.2em;
+  }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px;
+    border: none; border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-gold {
+    background: linear-gradient(135deg, var(--gold), var(--gold-dim));
+    color: #1a1a2e;
+  }
+  .btn-gold:hover:not(:disabled) {
+    background: linear-gradient(135deg, var(--gold-light), var(--gold));
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(212,168,67,0.3);
+  }
+  .btn-danger {
+    background: var(--danger);
+    color: white;
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: var(--danger-hover);
+    transform: translateY(-1px);
+  }
+  .btn-pirate {
+    background: linear-gradient(135deg, var(--pirate-red), #4a0000);
+    color: #ffd700;
+    font-size: 1rem;
+    padding: 14px 28px;
+    border: 2px solid #ffd700;
+  }
+  .btn-pirate:hover:not(:disabled) {
+    background: linear-gradient(135deg, #a00000, #600000);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(139,0,0,0.5);
+  }
+  .btn-resolve {
+    background: linear-gradient(135deg, var(--success), #1e8449);
+    color: white;
+    font-size: 1rem;
+    padding: 14px 28px;
+    border: 2px solid #2ecc71;
+  }
+  .btn-resolve:hover:not(:disabled) {
+    background: linear-gradient(135deg, #2ecc71, var(--success));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(39,174,96,0.4);
+  }
+  .btn-outline {
+    background: transparent;
+    color: var(--gold);
+    border: 2px solid var(--gold-dim);
+  }
+  .btn-outline:hover:not(:disabled) {
+    background: rgba(212,168,67,0.1);
+    border-color: var(--gold);
+  }
+  .btn-sm { padding: 6px 14px; font-size: 0.8rem; }
+
+  /* ── Layout ── */
+  .app { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 0;
+    border-bottom: 2px solid var(--gold-dim);
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  header h1 {
+    color: var(--gold);
+    font-size: 1.5rem;
+  }
+  header h1 span { color: var(--text-muted); font-size: 0.9rem; font-family: 'Inter', sans-serif; font-weight: 400; }
+  .header-status {
+    display: flex; align-items: center; gap: 16px;
+    flex-wrap: wrap;
+  }
+  .turn-badge {
+    background: var(--bg-surface);
+    border: 2px solid var(--gold);
+    border-radius: 10px;
+    padding: 8px 20px;
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 1.2rem;
+    color: var(--gold-light);
+  }
+  .submission-counter {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+  .submission-counter .count { color: var(--gold); font-weight: 700; font-size: 1.1rem; }
+  .pulse-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    margin-left: 6px;
+    animation: pulse 1.5s infinite;
+  }
+  .pulse-dot.waiting { background: var(--gold); }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+
+  /* ── Section ── */
+  .section {
+    background: var(--bg-card);
+    border: 1px solid rgba(212,168,67,0.15);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  .section-title {
+    color: var(--gold);
+    font-size: 1.1rem;
+    margin-bottom: 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-title .icon { font-size: 1.3rem; }
+
+  /* ── Team Grid ── */
+  .team-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  @media (max-width: 900px) { .team-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 550px) { .team-grid { grid-template-columns: 1fr; } }
+
+  .team-card {
+    border-radius: 10px;
+    padding: 18px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .team-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+  }
+  .team-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: var(--team-color);
+  }
+  .team-card .team-name {
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--team-color);
+    margin-bottom: 8px;
+  }
+  .team-card .resources-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .team-card .resource-num {
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: var(--gold-light);
+    line-height: 1;
+  }
+  .team-card .resource-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .team-card .submit-status {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 0.85rem;
+  }
+  .submit-status.submitted { color: var(--success); }
+  .submit-status.waiting { color: var(--gold); }
+  .submit-status .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid var(--gold-dim);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .team-card .detail-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+  .team-card .detail-row .val { color: var(--text); font-weight: 600; }
+
+  /* Road progress bar */
+  .road-bar-wrap {
+    margin-top: 10px;
+  }
+  .road-bar-label {
+    display: flex; justify-content: space-between;
+    font-size: 0.75rem;
+    margin-bottom: 4px;
+    color: var(--text-muted);
+  }
+  .road-bar-label .road-status { font-weight: 700; }
+  .road-bar-label .road-status.built { color: var(--success); }
+  .road-bar-label .road-status.not-built { color: var(--gold); }
+  .road-bar {
+    height: 8px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .road-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.5s ease;
+    background: linear-gradient(90deg, var(--gold-dim), var(--gold));
+  }
+  .road-bar-fill.complete {
+    background: linear-gradient(90deg, var(--success), #2ecc71);
+  }
+
+  /* ── Turn Controls ── */
+  .turn-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .pirate-section {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .pirate-override {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .pirate-override label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .pirate-override input[type="number"] {
+    width: 60px;
+    padding: 8px 10px;
+    border: 2px solid var(--gold-dim);
+    border-radius: 6px;
+    background: var(--bg-dark);
+    color: var(--gold-light);
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-align: center;
+  }
+  .pirate-override input:focus { outline: none; border-color: var(--gold); }
+
+  .resolve-section {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(212,168,67,0.1);
+    flex-wrap: wrap;
+  }
+  .all-submitted-badge {
+    font-size: 0.85rem;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+  .all-submitted-badge.ready {
+    background: rgba(39,174,96,0.15);
+    color: var(--success);
+    border: 1px solid var(--success);
+  }
+  .all-submitted-badge.waiting {
+    background: rgba(212,168,67,0.1);
+    color: var(--gold);
+    border: 1px solid var(--gold-dim);
+  }
+
+  /* ── Pirate Animation Overlay ── */
+  #pirate-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 5000;
+    align-items: center; justify-content: center;
+    flex-direction: column;
+  }
+  #pirate-overlay.active { display: flex; }
+  .pirate-anim-title {
+    font-family: 'Cinzel', serif;
+    color: #ffd700;
+    font-size: 2rem;
+    margin-bottom: 20px;
+    text-shadow: 0 0 20px rgba(255,215,0,0.5);
+  }
+  .pirate-ships-display {
+    font-size: 4rem;
+    min-height: 80px;
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .pirate-ships-display .ship {
+    opacity: 0;
+    transform: translateX(-40px);
+    transition: all 0.4s ease;
+  }
+  .pirate-ships-display .ship.visible {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  .pirate-result-text {
+    font-family: 'Cinzel', serif;
+    color: var(--text);
+    font-size: 1.4rem;
+    text-align: center;
+    max-width: 600px;
+    line-height: 1.6;
+  }
+  .pirate-dismiss {
+    margin-top: 30px;
+  }
+
+  /* ── Results Narrative ── */
+  .results-box {
+    background: var(--bg-dark);
+    border: 1px solid rgba(212,168,67,0.2);
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 16px;
+    display: none;
+  }
+  .results-box.visible { display: block; }
+  .results-box h3 {
+    color: var(--gold);
+    margin-bottom: 12px;
+    font-size: 1rem;
+  }
+  .result-line {
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 0.9rem;
+    line-height: 1.6;
+  }
+  .result-line:last-child { border-bottom: none; }
+  .result-line .raid { color: var(--danger-hover); font-weight: 600; }
+  .result-line .safe { color: var(--success); font-weight: 600; }
+  .result-line .defense-info { color: var(--text-muted); }
+
+  /* ── Turn History ── */
+  .history-toggle {
+    cursor: pointer;
+    user-select: none;
+  }
+  .history-toggle .arrow {
+    transition: transform 0.2s;
+    display: inline-block;
+  }
+  .history-toggle.open .arrow { transform: rotate(90deg); }
+  .history-content {
+    display: none;
+    margin-top: 16px;
+  }
+  .history-content.open { display: block; }
+
+  .history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  .history-table th {
+    background: var(--bg-surface);
+    color: var(--gold);
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .history-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .history-table tr:hover td {
+    background: rgba(212,168,67,0.03);
+  }
+
+  /* ── Game Controls ── */
+  .game-controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  /* ── Confirm Dialog ── */
+  #confirm-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 8000;
+    align-items: center; justify-content: center;
+  }
+  #confirm-overlay.active { display: flex; }
+  .confirm-box {
+    background: var(--bg-card);
+    border: 2px solid var(--danger);
+    border-radius: 12px;
+    padding: 32px;
+    max-width: 420px;
+    width: 90%;
+    text-align: center;
+  }
+  .confirm-box h3 {
+    color: var(--danger-hover);
+    margin-bottom: 12px;
+  }
+  .confirm-box p {
+    color: var(--text-muted);
+    margin-bottom: 24px;
+    font-size: 0.9rem;
+  }
+  .confirm-box .btn-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+  }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--bg-surface);
+    border: 1px solid var(--gold-dim);
+    border-radius: 8px;
+    padding: 12px 20px;
+    color: var(--text);
+    font-size: 0.9rem;
+    z-index: 6000;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s;
+    pointer-events: none;
+  }
+  .toast.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .toast.error { border-color: var(--danger); }
+
+  /* ── Loading Skeleton ── */
+  .skeleton {
+    background: linear-gradient(90deg, var(--bg-surface) 25%, rgba(212,168,67,0.08) 50%, var(--bg-surface) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 6px;
+  }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg-dark); }
+  ::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- ═══ LOGIN OVERLAY ═══ -->
+<div id="login-overlay">
+  <div class="login-box">
+    <h1>⚔️ Isle of Ted</h1>
+    <p>Facilitator Control Panel</p>
+    <input type="password" id="key-input" placeholder="Enter facilitator key" autofocus>
+    <div class="login-error" id="login-error"></div>
+    <button class="btn btn-gold" onclick="doLogin()" style="width:100%">Enter</button>
+  </div>
+</div>
+
+<!-- ═══ PIRATE ANIMATION OVERLAY ═══ -->
+<div id="pirate-overlay">
+  <div class="pirate-anim-title">⚔️ Pirates on the Horizon! ⚔️</div>
+  <div class="pirate-ships-display" id="pirate-ships"></div>
+  <div class="pirate-result-text" id="pirate-result-text"></div>
+  <button class="btn btn-gold pirate-dismiss" onclick="dismissPirateOverlay()">Continue</button>
+</div>
+
+<!-- ═══ CONFIRM DIALOG ═══ -->
+<div id="confirm-overlay">
+  <div class="confirm-box">
+    <h3 id="confirm-title">Are you sure?</h3>
+    <p id="confirm-msg">This action cannot be undone.</p>
+    <div class="btn-row">
+      <button class="btn btn-outline" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-danger" id="confirm-action-btn" onclick="">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TOAST ═══ -->
+<div class="toast" id="toast"></div>
+
+<!-- ═══ MAIN APP ═══ -->
+<div class="app" id="main-app" style="display:none;">
+
+  <!-- Header -->
+  <header>
+    <h1>⚔️ Isle of Ted <span>— Facilitator</span></h1>
+    <div class="header-status">
+      <div class="turn-badge" id="turn-badge">Turn —</div>
+      <div class="submission-counter">
+        Submissions: <span class="count" id="submission-count">0</span> / <span id="team-total">6</span>
+        <span class="pulse-dot waiting" id="status-dot"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Team Dashboard -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🏰</span> Team Dashboard</div>
+    <div class="team-grid" id="team-grid">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+
+  <!-- Turn Controls -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🎲</span> Turn Controls</div>
+    <div class="turn-controls">
+      <div class="pirate-section">
+        <button class="btn btn-pirate" id="btn-roll" onclick="rollPirates()">🏴‍☠️ Roll Pirates</button>
+        <div class="pirate-override">
+          <label for="pirate-override-input">Override:</label>
+          <input type="number" id="pirate-override-input" min="0" max="4" placeholder="—">
+        </div>
+        <div id="pirate-count-display" style="font-size:1.1rem; color:var(--gold-light); font-weight:700;"></div>
+      </div>
+      <div class="resolve-section">
+        <button class="btn btn-resolve" id="btn-resolve" onclick="resolveTurn()">✅ Resolve Turn</button>
+        <div class="all-submitted-badge waiting" id="ready-badge">⏳ Waiting for submissions…</div>
+      </div>
+    </div>
+    <div class="results-box" id="results-box">
+      <h3>📜 Turn Results</h3>
+      <div id="results-content"></div>
+    </div>
+  </div>
+
+  <!-- Turn History -->
+  <div class="section">
+    <div class="section-title history-toggle" id="history-toggle" onclick="toggleHistory()">
+      <span class="icon">📖</span> Turn History <span class="arrow">▶</span>
+    </div>
+    <div class="history-content" id="history-content">
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th>Turn</th>
+            <th>Pirates</th>
+            <th>Island Defense</th>
+            <th>Outcome</th>
+            <th>Raids</th>
+            <th>Roads</th>
+          </tr>
+        </thead>
+        <tbody id="history-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Team Links & Tokens -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🔗</span> Team Links</div>
+    <p style="color:var(--text-muted); margin-bottom:12px; font-size:0.9rem;">
+      Each team gets a unique secret URL. Share via QR code or link. Click "Regenerate" to create new tokens (invalidates old links).
+    </p>
+    <div id="token-grid" style="display:grid; gap:10px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));">
+      <!-- Populated by JS -->
+    </div>
+    <div style="margin-top:16px; display:flex; gap:12px; align-items:center;">
+      <button class="btn btn-outline" onclick="loadTokens()">🔄 Refresh Links</button>
+      <button class="btn btn-pirate" onclick="confirmAction('Regenerate Tokens', 'This will create NEW secret URLs for all teams. Old links will stop working. Continue?', regenerateTokens)">🔑 Regenerate All Tokens</button>
+    </div>
+  </div>
+
+  <!-- Game Controls -->
+  <div class="section">
+    <div class="section-title"><span class="icon">⚙️</span> Game Controls</div>
+    <div class="game-controls">
+      <button class="btn btn-outline" onclick="confirmAction('New Game', 'Start a brand new game? All current progress will be preserved in history.', newGame)">🆕 New Game</button>
+      <button class="btn btn-pirate" onclick="confirmAction('End Game', 'End the game and show the scoreboard to all teams? This cannot be undone (use Reset to start over).', endGame)">🏆 End Game</button>
+      <button class="btn btn-danger" onclick="confirmAction('Reset Game', 'This will permanently erase ALL game data. This cannot be undone!', resetGame)">🗑️ Reset Game</button>
+      <button class="btn btn-outline btn-sm" onclick="forceRefresh()">🔄 Force Refresh</button>
+      <button class="btn btn-outline btn-sm" onclick="logout()">🔒 Logout</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ════════════════════════════════════════════════════
+// CONFIGURATION
+// ════════════════════════════════════════════════════
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzceiymuHsxlML1vzQOcg23VH2dVVEF_vqKJ-QwjdPSP8Dyd91WLXSmnqmRj_XEoeDQkw/exec';
+
+const TEAM_COLORS = {
+  'Amaurot':       '#8B4513',
+  'Bensalem':      '#6A7B8B',
+  'Civitas Solis': '#D2B48C',
+  'Doriath':       '#8B8B00',
+  'Eldalonde':     '#2E8B57',
+  'Forostar':      '#7B337D'
+};
+
+const TEAM_ORDER = ['Amaurot','Bensalem','Civitas Solis','Doriath','Eldalonde','Forostar'];
+
+let facilitatorKey = '';
+let currentPirateCount = null;
+let refreshInterval = null;
+let gameState = null;
+
+// ════════════════════════════════════════════════════
+// LOGIN
+// ════════════════════════════════════════════════════
+function initLogin() {
+  const saved = localStorage.getItem('iot_facilitator_key');
+  if (saved) {
+    facilitatorKey = saved;
+    verifyKey();
+  }
+  document.getElementById('key-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+}
+
+function doLogin() {
+  facilitatorKey = document.getElementById('key-input').value.trim();
+  if (!facilitatorKey) {
+    document.getElementById('login-error').textContent = 'Please enter the facilitator key.';
+    return;
+  }
+  verifyKey();
+}
+
+async function verifyKey() {
+  try {
+    document.getElementById('login-error').textContent = 'Verifying…';
+    const data = await apiCall('getDashboard', {});
+    if (data.error) {
+      document.getElementById('login-error').textContent = data.error;
+      facilitatorKey = '';
+      return;
+    }
+    localStorage.setItem('iot_facilitator_key', facilitatorKey);
+    document.getElementById('login-overlay').style.display = 'none';
+    document.getElementById('main-app').style.display = 'block';
+    gameState = data;
+    renderDashboard(data);
+    loadTokens();
+    startAutoRefresh();
+  } catch (err) {
+    document.getElementById('login-error').textContent = 'Connection failed. Check URL and try again.';
+  }
+}
+
+function logout() {
+  localStorage.removeItem('iot_facilitator_key');
+  facilitatorKey = '';
+  stopAutoRefresh();
+  document.getElementById('login-overlay').style.display = 'flex';
+  document.getElementById('main-app').style.display = 'none';
+  document.getElementById('key-input').value = '';
+  document.getElementById('login-error').textContent = '';
+}
+
+// ════════════════════════════════════════════════════
+// API
+// ════════════════════════════════════════════════════
+async function apiCall(action, params = {}) {
+  const url = SCRIPT_URL;
+  const body = {
+    action: action,
+    key: facilitatorKey,
+    ...params
+  };
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(body)
+  });
+  return await resp.json();
+}
+
+// ════════════════════════════════════════════════════
+// DASHBOARD RENDERING
+// ════════════════════════════════════════════════════
+function renderDashboard(data) {
+  gameState = data;
+  const turn = data.currentTurn || 1;
+  document.getElementById('turn-badge').textContent = `Turn ${turn}`;
+
+  const teams = data.teams || [];
+  const submitted = teams.filter(t => t.submitted).length;
+  const total = teams.length || 6;
+  document.getElementById('submission-count').textContent = submitted;
+  document.getElementById('team-total').textContent = total;
+
+  const dot = document.getElementById('status-dot');
+  const badge = document.getElementById('ready-badge');
+  if (submitted >= total) {
+    dot.className = 'pulse-dot';
+    dot.style.background = 'var(--success)';
+    badge.className = 'all-submitted-badge ready';
+    badge.textContent = '✅ All teams submitted — ready to resolve!';
+  } else {
+    dot.className = 'pulse-dot waiting';
+    dot.style.background = '';
+    badge.className = 'all-submitted-badge waiting';
+    badge.textContent = `⏳ Waiting for submissions… (${submitted}/${total})`;
+  }
+
+  renderTeamGrid(teams);
+  renderHistory(data.history || []);
+}
+
+function renderTeamGrid(teams) {
+  const grid = document.getElementById('team-grid');
+  // Build a lookup
+  const teamMap = {};
+  teams.forEach(t => teamMap[t.name] = t);
+
+  grid.innerHTML = TEAM_ORDER.map(name => {
+    const t = teamMap[name] || { name, resources: '?', submitted: false, roadProgress: 0, roadBuilt: false, defense: 0, roadSpending: 0 };
+    const color = TEAM_COLORS[name] || '#888';
+    const resources = t.resources ?? '?';
+    const sub = t.submitted;
+    const roadProg = t.roadProgress || 0;
+    const roadBuilt = t.roadBuilt || false;
+    const roadPct = Math.min(100, (roadProg / 8) * 100);
+    const defense = t.defense ?? '—';
+    const roadSpend = t.roadSpending ?? '—';
+
+    return `
+      <div class="team-card" style="--team-color:${color}; background: linear-gradient(135deg, ${hexToRGBA(color, 0.12)}, ${hexToRGBA(color, 0.04)});">
+        <div class="team-name">${name}</div>
+        <div class="resources-row">
+          <div>
+            <div class="resource-num">${resources}</div>
+            <div class="resource-label">Resources</div>
+          </div>
+          <div class="submit-status ${sub ? 'submitted' : 'waiting'}">
+            ${sub ? '✅ Submitted' : '<div class="spinner"></div> Waiting'}
+          </div>
+        </div>
+        <div class="detail-row">
+          <span>Defense: <span class="val">${defense}</span></span>
+          <span>Road invest: <span class="val">${roadSpend}</span></span>
+        </div>
+        <div class="road-bar-wrap">
+          <div class="road-bar-label">
+            <span>Road: ${roadProg}/8</span>
+            <span class="road-status ${roadBuilt ? 'built' : 'not-built'}">${roadBuilt ? '🛤️ Built!' : 'Not Built'}</span>
+          </div>
+          <div class="road-bar">
+            <div class="road-bar-fill ${roadBuilt ? 'complete' : ''}" style="width:${roadPct}%"></div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function hexToRGBA(hex, alpha) {
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const b = parseInt(hex.slice(5,7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// ════════════════════════════════════════════════════
+// PIRATE ROLL
+// ════════════════════════════════════════════════════
+async function rollPirates() {
+  const btn = document.getElementById('btn-roll');
+  btn.disabled = true;
+  btn.textContent = '🎲 Rolling…';
+
+  try {
+    const data = await apiCall('rollPirates', {});
+    if (data.error) {
+      toast(data.error, true);
+      btn.disabled = false;
+      btn.textContent = '🏴‍☠️ Roll Pirates';
+      return;
+    }
+    const count = data.pirateCount;
+    currentPirateCount = count;
+    document.getElementById('pirate-override-input').value = count;
+    showPirateAnimation(count);
+  } catch (err) {
+    toast('Failed to roll pirates: ' + err.message, true);
+  }
+  btn.disabled = false;
+  btn.textContent = '🏴‍☠️ Roll Pirates';
+}
+
+function showPirateAnimation(count) {
+  const overlay = document.getElementById('pirate-overlay');
+  const shipsEl = document.getElementById('pirate-ships');
+  const resultText = document.getElementById('pirate-result-text');
+
+  overlay.classList.add('active');
+  shipsEl.innerHTML = '';
+  resultText.textContent = '';
+
+  if (count === 0) {
+    resultText.textContent = 'The seas are calm. No pirates today! 🌊';
+    shipsEl.innerHTML = '<span style="font-size:3rem;">🌊☀️🌊</span>';
+    return;
+  }
+
+  // Animate ships appearing one by one
+  for (let i = 0; i < count; i++) {
+    const ship = document.createElement('span');
+    ship.className = 'ship';
+    ship.textContent = '🏴‍☠️';
+    shipsEl.appendChild(ship);
+    setTimeout(() => {
+      ship.classList.add('visible');
+    }, 400 + i * 500);
+  }
+
+  setTimeout(() => {
+    const plural = count === 1 ? 'ship approaches' : 'ships approach';
+    resultText.textContent = `${count} pirate ${plural} the island!`;
+  }, 400 + count * 500 + 300);
+}
+
+function dismissPirateOverlay() {
+  document.getElementById('pirate-overlay').classList.remove('active');
+}
+
+// ════════════════════════════════════════════════════
+// RESOLVE TURN
+// ════════════════════════════════════════════════════
+async function resolveTurn() {
+  const overrideVal = document.getElementById('pirate-override-input').value;
+  const pirateCount = overrideVal !== '' ? parseInt(overrideVal) : currentPirateCount;
+
+  if (pirateCount === null || pirateCount === undefined || isNaN(pirateCount)) {
+    toast('Roll pirates first or enter an override count.', true);
+    return;
+  }
+
+  const btn = document.getElementById('btn-resolve');
+  btn.disabled = true;
+  btn.textContent = '⏳ Resolving…';
+
+  try {
+    const data = await apiCall('resolveTurn', { pirateCount: pirateCount });
+    if (data.error) {
+      toast(data.error, true);
+      btn.disabled = false;
+      btn.textContent = '✅ Resolve Turn';
+      return;
+    }
+
+    displayResults(data, pirateCount);
+    currentPirateCount = null;
+    document.getElementById('pirate-override-input').value = '';
+    document.getElementById('pirate-count-display').textContent = '';
+
+    // Refresh dashboard
+    await refreshDashboard();
+
+  } catch (err) {
+    toast('Failed to resolve turn: ' + err.message, true);
+  }
+  btn.disabled = false;
+  btn.textContent = '✅ Resolve Turn';
+}
+
+function displayResults(data, pirateCount) {
+  const box = document.getElementById('results-box');
+  const content = document.getElementById('results-content');
+  box.classList.add('visible');
+
+  const results = data.results || data;
+  const totalDefense = results.totalDefense || 0;
+  const pirateStrength = results.pirateStrength || pirateCount;
+  const raids = results.raids || [];
+  const defended = pirateStrength <= totalDefense;
+
+  let html = '';
+
+  // Summary
+  html += `<div class="result-line">
+    <strong>🏴‍☠️ ${pirateCount} pirate ship${pirateCount !== 1 ? 's' : ''} attacked!</strong>
+    &nbsp; <span class="defense-info">(Pirate strength: ${pirateStrength} | Island defense: ${totalDefense})</span>
+  </div>`;
+
+  if (defended && pirateCount > 0) {
+    html += `<div class="result-line"><span class="safe">🛡️ The island's defenses held! Raiders defeated!</span></div>`;
+  } else if (pirateCount === 0) {
+    html += `<div class="result-line"><span class="safe">🌊 Peaceful turn — no pirates appeared.</span></div>`;
+  }
+
+  if (raids.length > 0) {
+    raids.forEach(r => {
+      html += `<div class="result-line">
+        <span class="raid">💥 ${r.team} was raided for ${r.loss} resource${r.loss !== 1 ? 's' : ''}!</span>
+        ${r.detail ? ` <span class="defense-info">(${r.detail})</span>` : ''}
+      </div>`;
+    });
+  }
+
+  // Per-team outcomes if available
+  if (results.teamOutcomes) {
+    html += '<div style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.08);">';
+    html += '<strong style="color:var(--gold); font-size:0.85rem;">Team Details:</strong>';
+    results.teamOutcomes.forEach(to => {
+      html += `<div class="result-line" style="font-size:0.85rem;">
+        <strong style="color:${TEAM_COLORS[to.team] || 'var(--text)'}">${to.team}</strong>:
+        Resources ${to.prevResources} → ${to.newResources}
+        ${to.raided ? `<span class="raid">(Raided: -${to.raidLoss})</span>` : '<span class="safe">(Safe)</span>'}
+        ${to.roadProgress ? ` | Road: ${to.roadProgress}/8` : ''}
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  content.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════
+// TURN HISTORY
+// ════════════════════════════════════════════════════
+function toggleHistory() {
+  const toggle = document.getElementById('history-toggle');
+  const content = document.getElementById('history-content');
+  toggle.classList.toggle('open');
+  content.classList.toggle('open');
+}
+
+function renderHistory(history) {
+  const tbody = document.getElementById('history-tbody');
+  if (!history.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-muted); text-align:center; padding:20px;">No turns resolved yet.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = history.map(h => {
+    let outcome, raidsText;
+    if (h.pirateCount === 0) {
+      outcome = '🌊 No pirates';
+      raidsText = '<span style="color:var(--text-muted)">—</span>';
+    } else if (h.defended) {
+      outcome = '🛡️ Defended';
+      raidsText = `<span style="color:var(--success)">Target: ${h.raidTargetName} (saved!)</span>`;
+    } else {
+      outcome = '💥 Raided';
+      raidsText = `<span style="color:var(--danger)">${h.raidTargetName}: −${h.raidDamage}</span>`;
+    }
+
+    const roadIcon = h.roadCollapsed ? '🚧' : h.roadBuilt ? '🛤️' : '🏗️';
+
+    return `<tr>
+      <td><strong>${h.turn}</strong></td>
+      <td>${h.pirateCount} ${'🏴‍☠️'.repeat(Math.min(h.pirateCount, 4))}</td>
+      <td>${h.totalDefense ?? '—'}</td>
+      <td>${outcome}</td>
+      <td>${raidsText}</td>
+      <td>${roadIcon}</td>
+    </tr>`;
+  }).reverse().join('');
+}
+
+// ════════════════════════════════════════════════════
+// GAME CONTROLS
+// ════════════════════════════════════════════════════
+let confirmCallback = null;
+
+function confirmAction(title, msg, callback) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-msg').textContent = msg;
+  confirmCallback = callback;
+  document.getElementById('confirm-action-btn').onclick = () => {
+    closeConfirm();
+    if (confirmCallback) confirmCallback();
+  };
+  document.getElementById('confirm-overlay').classList.add('active');
+}
+
+function closeConfirm() {
+  document.getElementById('confirm-overlay').classList.remove('active');
+  confirmCallback = null;
+}
+
+async function newGame() {
+  try {
+    const data = await apiCall('newGame', {});
+    if (data.error) { toast(data.error, true); return; }
+    toast('New game started!');
+    currentPirateCount = null;
+    document.getElementById('pirate-override-input').value = '';
+    document.getElementById('results-box').classList.remove('visible');
+    await refreshDashboard();
+  } catch (err) {
+    toast('Failed: ' + err.message, true);
+  }
+}
+
+async function resetGame() {
+  try {
+    const data = await apiCall('resetGame', {});
+    if (data.error) { toast(data.error, true); return; }
+    toast('Game has been reset.');
+    currentPirateCount = null;
+    document.getElementById('pirate-override-input').value = '';
+    document.getElementById('results-box').classList.remove('visible');
+    await refreshDashboard();
+  } catch (err) {
+    toast('Failed: ' + err.message, true);
+  }
+}
+
+// ════════════════════════════════════════════════════
+// AUTO-REFRESH
+// ════════════════════════════════════════════════════
+function startAutoRefresh() {
+  stopAutoRefresh();
+  refreshInterval = setInterval(refreshDashboard, 3000);
+}
+
+function stopAutoRefresh() {
+  if (refreshInterval) {
+    clearInterval(refreshInterval);
+    refreshInterval = null;
+  }
+}
+
+async function refreshDashboard() {
+  try {
+    const data = await apiCall('getDashboard', {});
+    if (data.error) return; // silently fail on auto-refresh
+    renderDashboard(data);
+  } catch (e) {
+    // Network hiccup — skip
+  }
+}
+
+async function forceRefresh() {
+  toast('Refreshing…');
+  await refreshDashboard();
+  toast('Dashboard updated.');
+}
+
+// ════════════════════════════════════════════════════
+// TEAM TOKENS / LINKS
+// ════════════════════════════════════════════════════
+const BASE_GAME_URL = window.location.origin + window.location.pathname.replace('facilitator.html', '');
+
+async function endGame() {
+  try {
+    const data = await apiCall('endGame', {});
+    if (!data.success) { toast('Failed: ' + (data.error || ''), true); return; }
+    toast('🏆 Game ended! Scoreboard is now visible to all teams.');
+    await refreshDashboard();
+  } catch(e) { toast('Error: ' + e.message, true); }
+}
+
+async function loadTokens() {
+  try {
+    const data = await apiCall('getTokens', {});
+    if (!data.success) { toast('Failed to load tokens: ' + (data.error || 'unknown error'), true); return; }
+    if (!data.teams || Object.keys(data.teams).length === 0) {
+      document.getElementById('token-grid').innerHTML = '<p style="color:var(--text-muted);">No tokens found. Click "Regenerate All Tokens" to create them.</p>';
+      return;
+    }
+    renderTokens(data.teams);
+  } catch (e) {
+    toast('Error loading tokens: ' + e.message, true);
+  }
+}
+
+function renderTokens(teams) {
+  const grid = document.getElementById('token-grid');
+  grid.innerHTML = '';
+  for (const id of Object.keys(teams)) {
+    const t = teams[id];
+    const color = TEAM_COLORS[t.name] || '#888';
+    const fullUrl = BASE_GAME_URL + '?team=' + encodeURIComponent(t.token);
+    const qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(fullUrl);
+
+    grid.innerHTML += `
+      <div style="background:${hexToRGBA(color, 0.1)}; border:1px solid ${hexToRGBA(color, 0.4)}; border-radius:10px; padding:14px; display:flex; gap:14px; align-items:center;">
+        <img src="${qrApiUrl}" alt="QR" style="width:90px; height:90px; border-radius:6px; background:#fff; padding:4px;">
+        <div style="flex:1; min-width:0;">
+          <div style="font-family:'Cinzel',serif; font-weight:700; color:${color}; font-size:1rem; margin-bottom:4px;">${t.name}</div>
+          <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:6px; word-break:break-all;">${fullUrl}</div>
+          <button class="btn btn-outline btn-sm" style="font-size:0.75rem; padding:4px 10px;"
+            onclick="navigator.clipboard.writeText('${fullUrl}'); toast('Link copied!');">📋 Copy</button>
+        </div>
+      </div>`;
+  }
+}
+
+async function regenerateTokens() {
+  try {
+    const data = await apiCall('regenerateTokens', {});
+    if (!data.success) { toast('Failed: ' + (data.error || ''), true); return; }
+    toast('✅ New tokens generated! Old links are now invalid.');
+    loadTokens();
+  } catch (e) {
+    toast('Error: ' + e.message, true);
+  }
+}
+
+// ════════════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════════════
+let toastTimeout = null;
+function toast(msg, isError = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast visible' + (isError ? ' error' : '');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => {
+    el.className = 'toast';
+  }, 3000);
+}
+
+// ════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', initLogin);
+</script>
+</body>
+</html>
