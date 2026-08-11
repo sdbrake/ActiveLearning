@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Isle of Ted</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --team-color: #8B4513;
+    --team-glow: rgba(139,69,19,0.4);
+    --parchment: #1a1510;
+    --parchment-light: #2a2218;
+    --parchment-lighter: #3a3228;
+    --gold: #d4a854;
+    --gold-dim: #a07830;
+    --text: #e8dcc8;
+    --text-dim: #9e937f;
+    --danger: #c44;
+    --success: #5a8a4a;
+  }
+
+  body {
+    font-family: 'Crimson Text', Georgia, serif;
+    background: var(--parchment);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Parchment texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 20% 50%, rgba(60,45,20,0.3) 0%, transparent 70%),
+      radial-gradient(ellipse at 80% 20%, rgba(50,35,15,0.2) 0%, transparent 60%),
+      radial-gradient(ellipse at 50% 80%, rgba(40,30,10,0.25) 0%, transparent 65%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Decorative compass rose watermark */
+  body::after {
+    content: '⚓';
+    position: fixed;
+    bottom: 10%;
+    right: 5%;
+    font-size: 8rem;
+    opacity: 0.03;
+    pointer-events: none;
+    z-index: 0;
+    transform: rotate(-15deg);
+  }
+
+  /* Decorative border */
+  .border-frame {
+    position: fixed;
+    inset: 6px;
+    border: 1px solid rgba(212,168,84,0.15);
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .border-frame::before {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border: 1px solid rgba(212,168,84,0.08);
+    border-radius: 3px;
+  }
+
+  .container {
+    position: relative;
+    z-index: 2;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 20px 16px 40px;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    padding: 16px 0 12px;
+    border-bottom: 1px solid rgba(212,168,84,0.2);
+    margin-bottom: 20px;
+  }
+  .game-title {
+    font-family: 'Cinzel', serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--gold-dim);
+    margin-bottom: 4px;
+  }
+  .team-name {
+    font-family: 'Cinzel', serif;
+    font-size: 2.2rem;
+    font-weight: 900;
+    color: var(--team-color);
+    text-shadow: 0 0 30px var(--team-glow), 0 2px 4px rgba(0,0,0,0.5);
+    line-height: 1.1;
+    margin-bottom: 2px;
+  }
+  .faction-label {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    font-style: italic;
+  }
+  .turn-badge {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 3px 14px;
+    border: 1px solid var(--gold-dim);
+    border-radius: 20px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+
+  /* Resource display */
+  .resource-panel {
+    background: linear-gradient(135deg, var(--parchment-light), var(--parchment-lighter));
+    border: 1px solid rgba(212,168,84,0.2);
+    border-radius: 12px;
+    padding: 24px 20px;
+    text-align: center;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .resource-panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--team-color), transparent);
+  }
+  .resource-label {
+    font-family: 'Cinzel', serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+  .resource-value {
+    font-family: 'Cinzel', serif;
+    font-size: 4rem;
+    font-weight: 900;
+    color: var(--gold);
+    text-shadow: 0 0 20px rgba(212,168,84,0.3);
+    line-height: 1;
+    transition: all 0.5s ease;
+  }
+  .resource-icon {
+    font-size: 1.6rem;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+  .resource-suffix {
+    font-size: 1rem;
+    color: var(--text-dim);
+    font-weight: 400;
+    margin-left: 4px;
+  }
+
+  /* Road status */
+  .road-panel {
+    background: var(--parchment-light);
+    border: 1px solid rgba(212,168,84,0.15);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+  }
+  .road-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .road-title {
+    font-family: 'Cinzel', serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .road-status-text {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+  .road-bar-bg {
+    height: 10px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 5px;
+    overflow: hidden;
+    border: 1px solid rgba(212,168,84,0.1);
+  }
+  .road-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--team-color), var(--gold));
+    border-radius: 5px;
+    transition: width 0.8s ease;
+  }
+  .road-complete {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 14px;
+    background: rgba(90,138,74,0.15);
+    border: 1px solid rgba(90,138,74,0.3);
+    border-radius: 20px;
+    color: var(--success);
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  /* Form */
+  .form-panel {
+    background: var(--parchment-light);
+    border: 1px solid rgba(212,168,84,0.15);
+    border-radius: 12px;
+    padding: 20px 18px;
+    margin-bottom: 16px;
+  }
+  .form-title {
+    font-family: 'Cinzel', serif;
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    color: var(--gold);
+    text-align: center;
+    margin-bottom: 18px;
+  }
+  .input-group {
+    margin-bottom: 16px;
+  }
+  .input-label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .input-label .emoji { margin-right: 4px; }
+  .number-control {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(212,168,84,0.2);
+    background: rgba(0,0,0,0.2);
+  }
+  .num-btn {
+    width: 56px;
+    height: 56px;
+    border: none;
+    background: var(--parchment-lighter);
+    color: var(--gold);
+    font-size: 1.5rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+  .num-btn:active { background: rgba(212,168,84,0.2); }
+  .num-btn:disabled { opacity: 0.3; cursor: default; }
+  .num-input {
+    flex: 1;
+    height: 56px;
+    border: none;
+    background: transparent;
+    color: var(--gold);
+    font-family: 'Cinzel', serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    text-align: center;
+    outline: none;
+    -moz-appearance: textfield;
+  }
+  .num-input::-webkit-outer-spin-button,
+  .num-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+  .remaining {
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin: 12px 0 4px;
+    transition: color 0.3s;
+  }
+  .remaining.over { color: var(--danger); font-weight: 600; }
+
+  .submit-btn {
+    width: 100%;
+    padding: 16px;
+    margin-top: 12px;
+    border: 1px solid var(--team-color);
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(139,69,19,0.3), rgba(139,69,19,0.15));
+    color: var(--text);
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .submit-btn:active:not(:disabled) {
+    transform: scale(0.98);
+    background: linear-gradient(135deg, rgba(139,69,19,0.5), rgba(139,69,19,0.3));
+  }
+  .submit-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  /* Waiting state */
+  .waiting-panel {
+    text-align: center;
+    padding: 40px 20px;
+  }
+  .waiting-icon {
+    font-size: 3rem;
+    animation: float 2s ease-in-out infinite;
+    margin-bottom: 16px;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  .waiting-text {
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    color: var(--gold);
+    margin-bottom: 8px;
+  }
+  .waiting-sub {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    font-style: italic;
+  }
+  .waiting-dots::after {
+    content: '';
+    animation: dots 1.5s steps(4, end) infinite;
+  }
+  @keyframes dots {
+    0% { content: ''; }
+    25% { content: '.'; }
+    50% { content: '..'; }
+    75% { content: '...'; }
+  }
+
+  /* Results */
+  .results-panel {
+    background: var(--parchment-light);
+    border: 1px solid rgba(212,168,84,0.2);
+    border-radius: 12px;
+    padding: 24px 18px;
+    text-align: center;
+    animation: fadeIn 0.5s ease;
+  }
+  .results-title {
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    color: var(--gold);
+    margin-bottom: 16px;
+  }
+  .result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(212,168,84,0.08);
+    font-size: 0.95rem;
+  }
+  .result-item:last-child { border-bottom: none; }
+  .result-item .label { color: var(--text-dim); }
+  .result-item .value { font-weight: 600; color: var(--text); }
+  .result-item .value.positive { color: var(--success); }
+  .result-item .value.negative { color: var(--danger); }
+
+  /* Pirate result panels */
+  .result-pirate {
+    text-align: center;
+    padding: 16px 12px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+  }
+  .result-pirate.raided {
+    background: rgba(204, 68, 68, 0.15);
+    border: 1px solid rgba(204, 68, 68, 0.4);
+  }
+  .result-pirate.defended {
+    background: rgba(90, 138, 74, 0.15);
+    border: 1px solid rgba(90, 138, 74, 0.4);
+  }
+  .result-pirate.other-raided {
+    background: rgba(212, 168, 84, 0.1);
+    border: 1px solid rgba(212, 168, 84, 0.25);
+  }
+  .result-pirate.peaceful {
+    background: rgba(106, 123, 139, 0.1);
+    border: 1px solid rgba(106, 123, 139, 0.2);
+  }
+  .pirate-icon {
+    font-size: 2.5rem;
+    margin-bottom: 6px;
+  }
+  .pirate-headline {
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-bottom: 4px;
+  }
+  .raided .pirate-headline { color: var(--danger); }
+  .defended .pirate-headline { color: var(--success); }
+  .other-raided .pirate-headline { color: var(--gold); }
+  .pirate-detail {
+    font-size: 0.9rem;
+    color: var(--text-dim);
+  }
+  .pirate-loss {
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--danger);
+    margin-top: 6px;
+    font-family: 'Cinzel', serif;
+  }
+
+  /* Road result panels */
+  .result-road {
+    text-align: center;
+    padding: 14px 12px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+  }
+  .result-road.collapsed {
+    background: rgba(204, 68, 68, 0.12);
+    border: 1px solid rgba(204, 68, 68, 0.35);
+  }
+  .result-road.completed {
+    background: rgba(90, 138, 74, 0.15);
+    border: 1px solid rgba(90, 138, 74, 0.4);
+  }
+  .result-road.maintained {
+    background: rgba(212, 168, 84, 0.08);
+    border: 1px solid rgba(212, 168, 84, 0.2);
+  }
+  .result-road.unfinished {
+    background: rgba(158, 147, 127, 0.08);
+    border: 1px solid rgba(158, 147, 127, 0.2);
+  }
+  .road-result-icon {
+    font-size: 2rem;
+    margin-bottom: 4px;
+  }
+  .road-result-headline {
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 3px;
+  }
+  .collapsed .road-result-headline { color: var(--danger); }
+  .completed .road-result-headline { color: var(--success); }
+  .maintained .road-result-headline { color: var(--gold); }
+  .unfinished .road-result-headline { color: var(--text-dim); }
+  .road-result-detail {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+  }
+  .continue-btn {
+    margin-top: 18px;
+    padding: 14px 32px;
+    border: 1px solid var(--gold-dim);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--gold);
+    font-family: 'Cinzel', serif;
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .continue-btn:active { background: rgba(212,168,84,0.1); }
+
+  /* Error / config screens */
+  .message-screen {
+    text-align: center;
+    padding: 60px 20px;
+  }
+  .message-screen .icon { font-size: 3rem; margin-bottom: 16px; }
+  .message-screen h2 {
+    font-family: 'Cinzel', serif;
+    font-size: 1.2rem;
+    color: var(--gold);
+    margin-bottom: 10px;
+  }
+  .message-screen p {
+    font-size: 0.95rem;
+    color: var(--text-dim);
+    line-height: 1.6;
+    max-width: 340px;
+    margin: 0 auto;
+  }
+  .retry-btn {
+    margin-top: 20px;
+    padding: 12px 28px;
+    border: 1px solid var(--gold-dim);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--gold);
+    font-family: 'Cinzel', serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .fade-in { animation: fadeIn 0.4s ease; }
+
+  /* Skeleton loading */
+  .skeleton {
+    background: linear-gradient(90deg, var(--parchment-light) 25%, var(--parchment-lighter) 50%, var(--parchment-light) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 6px;
+  }
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Submitted flash */
+  .already-submitted {
+    text-align: center;
+    padding: 24px 16px;
+    color: var(--text-dim);
+  }
+  .already-submitted .icon { font-size: 2rem; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<div class="border-frame"></div>
+
+<div class="container" id="app">
+  <!-- Content injected by JS -->
+</div>
+
+<script>
+// ============================================================
+// CONFIGURATION — Replace this URL after deploying Apps Script
+// ============================================================
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzceiymuHsxlML1vzQOcg23VH2dVVEF_vqKJ-QwjdPSP8Dyd91WLXSmnqmRj_XEoeDQkw/exec';
+
+const TEAMS = {
+  amaurot:   { name: 'Amaurot',       color: '#8B4513', letter: 'A' },
+  bensalem:  { name: 'Bensalem',      color: '#6A7B8B', letter: 'B' },
+  civitas:   { name: 'Civitas Solis', color: '#D2B48C', letter: 'C' },
+  doriath:   { name: 'Doriath',       color: '#8B8B00', letter: 'D' },
+  eldalonde: { name: 'Eldalonde',     color: '#2E8B57', letter: 'E' },
+  forostar:  { name: 'Forostar',      color: '#7B337D', letter: 'F' },
+};
+
+// Also map display names to colors for token-based lookups
+const NAME_COLORS = {};
+for (const k in TEAMS) { NAME_COLORS[TEAMS[k].name] = TEAMS[k]; }
+
+// ============================================================
+// STATE
+// ============================================================
+const app = document.getElementById('app');
+const params = new URLSearchParams(window.location.search);
+const teamId = (params.get('team') || '').trim();
+// team might be a token or a name — we won't know until the API responds
+let team = TEAMS[teamId.toLowerCase()] || null;
+
+let currentState = null;
+let submittedTurn = null;
+let pollTimer = null;
+
+/**
+ * After the first API response, resolve team info from the returned name.
+ */
+function resolveTeamFromState(state) {
+  if (!team && state.name) {
+    team = NAME_COLORS[state.name] || TEAMS[state.team] || { name: state.name, color: '#d4a854', letter: '?' };
+  }
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function setTeamColor(color) {
+  const r = document.documentElement;
+  r.style.setProperty('--team-color', color);
+  const hex = color.replace('#','');
+  const rb = parseInt(hex.substring(0,2),16);
+  const gb = parseInt(hex.substring(2,4),16);
+  const bb = parseInt(hex.substring(4,6),16);
+  r.style.setProperty('--team-glow', `rgba(${rb},${gb},${bb},0.4)`);
+}
+
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+async function apiGet(action, extraParams = {}) {
+  const url = new URL(SCRIPT_URL);
+  url.searchParams.set('action', action);
+  url.searchParams.set('team', teamId);
+  for (const [k,v] of Object.entries(extraParams)) url.searchParams.set(k, v);
+  const resp = await fetch(url.toString());
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return resp.json();
+}
+
+async function apiPost(data) {
+  const resp = await fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(data),
+  });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return resp.json();
+}
+
+// ============================================================
+// RENDER FUNCTIONS
+// ============================================================
+function renderConfigError() {
+  app.innerHTML = `
+    <div class="message-screen fade-in">
+      <div class="icon">🗺️</div>
+      <h2>Isle of Ted</h2>
+      <p>The game server hasn't been configured yet. Ask your facilitator to set up the Apps Script URL.</p>
+    </div>`;
+}
+
+function renderTeamError() {
+  app.innerHTML = `
+    <div class="message-screen fade-in">
+      <div class="icon">🏝️</div>
+      <h2>Unknown Faction</h2>
+      <p>No team found. Make sure you're using the link or QR code provided by your facilitator.</p>
+    </div>`;
+}
+
+function renderNetworkError(msg) {
+  app.innerHTML = `
+    <div class="message-screen fade-in">
+      <div class="icon">⚡</div>
+      <h2>Connection Lost</h2>
+      <p>${msg || 'Could not reach the game server. Check your connection and try again.'}</p>
+      <button class="retry-btn" onclick="loadState()">Retry</button>
+    </div>`;
+}
+
+function renderLoading() {
+  const name = team ? team.name : 'Loading...';
+  app.innerHTML = `
+    <div class="header">
+      <div class="game-title">Isle of Ted</div>
+      <div class="team-name">${name}</div>
+    </div>
+    <div class="resource-panel">
+      <div class="resource-label">Resources</div>
+      <div class="skeleton" style="width:120px;height:48px;margin:8px auto;"></div>
+    </div>
+    <div class="skeleton" style="width:100%;height:60px;margin-bottom:16px;border-radius:10px;"></div>
+    <div class="skeleton" style="width:100%;height:200px;border-radius:12px;"></div>`;
+}
+
+function renderGame(state) {
+  const resources = state.resources ?? 0;
+  const turn = state.turn ?? 1;
+  const roadPoints = state.roadPoints ?? 0;
+  const roadsBuilt = state.roadsBuilt ?? false;
+  const hasSubmitted = state.hasSubmitted ?? false;
+  const maxRoad = 8;
+  const roadPct = Math.min(100, (roadPoints / maxRoad) * 100);
+
+  let roadHTML;
+  if (roadsBuilt) {
+    roadHTML = `
+      <div class="road-panel fade-in">
+        <div class="road-header">
+          <span class="road-title">🛤️ Trade Roads</span>
+          <span class="road-complete">Roads Active ✓</span>
+        </div>
+      </div>`;
+  } else {
+    roadHTML = `
+      <div class="road-panel fade-in">
+        <div class="road-header">
+          <span class="road-title">🛤️ Trade Roads</span>
+          <span class="road-status-text">${roadPoints} / ${maxRoad} points</span>
+        </div>
+        <div class="road-bar-bg">
+          <div class="road-bar-fill" style="width:${roadPct}%"></div>
+        </div>
+      </div>`;
+  }
+
+  let formHTML;
+  if (hasSubmitted) {
+    formHTML = renderWaitingHTML();
+  } else {
+    formHTML = renderFormHTML(resources);
+  }
+
+  app.innerHTML = `
+    <div class="header fade-in">
+      <div class="game-title">Isle of Ted</div>
+      <div class="team-name">${team.name}</div>
+      <div class="faction-label">Faction ${team.letter}</div>
+      <div class="turn-badge">Turn ${turn}</div>
+    </div>
+    <div class="resource-panel fade-in">
+      <div class="resource-label">Treasury</div>
+      <div class="resource-value"><span class="resource-icon">💰</span>${resources}</div>
+    </div>
+    ${roadHTML}
+    <div id="form-area">
+      ${formHTML}
+    </div>`;
+
+  if (!hasSubmitted) {
+    bindForm(resources);
+  } else {
+    submittedTurn = turn;
+    startPolling();
+  }
+}
+
+function renderFormHTML(resources) {
+  return `
+    <div class="form-panel fade-in">
+      <div class="form-title">Allocate Resources</div>
+      <div class="input-group">
+        <label class="input-label"><span class="emoji">🛤️</span> Spending on Roads</label>
+        <div class="number-control">
+          <button class="num-btn" data-target="roads" data-delta="-1" type="button">−</button>
+          <input class="num-input" type="number" id="roads" value="0" min="0" inputmode="numeric">
+          <button class="num-btn" data-target="roads" data-delta="1" type="button">+</button>
+        </div>
+      </div>
+      <div class="input-group">
+        <label class="input-label"><span class="emoji">🛡️</span> Spending on Defense</label>
+        <div class="number-control">
+          <button class="num-btn" data-target="defense" data-delta="-1" type="button">−</button>
+          <input class="num-input" type="number" id="defense" value="0" min="0" inputmode="numeric">
+          <button class="num-btn" data-target="defense" data-delta="1" type="button">+</button>
+        </div>
+      </div>
+      <div class="remaining" id="remaining">Remaining: ${resources}</div>
+      <button class="submit-btn" id="submitBtn" type="button">⚔️ Submit Orders</button>
+    </div>`;
+}
+
+function renderWaitingHTML() {
+  return `
+    <div class="waiting-panel fade-in">
+      <div class="waiting-icon">⏳</div>
+      <div class="waiting-text">Orders Submitted</div>
+      <div class="waiting-sub">Waiting for turn resolution<span class="waiting-dots"></span></div>
+    </div>`;
+}
+
+function renderResults(oldState, newState) {
+  stopPolling();
+  resolveTeamFromState(newState);
+  const prevResources = oldState.resources ?? 0;
+  const newResources = newState.resources ?? 0;
+  const turn = oldState.turn ?? 1;
+  const lt = newState.lastTurn;
+
+  let pirateHTML = '';
+  let tradeHTML = '';
+  let roadHTML = '';
+
+  if (lt) {
+    // Pirate section — always shown prominently
+    if (lt.pirateCount > 0) {
+      if (lt.wasTargeted && !lt.raidDefeated) {
+        // THIS team was raided
+        pirateHTML = `
+          <div class="result-pirate raided fade-in">
+            <div class="pirate-icon">🏴‍☠️💥</div>
+            <div class="pirate-headline">You have been raided by pirates!</div>
+            <div class="pirate-detail">${lt.pirateCount} ship(s) attacked ${lt.raidTargetName}. ${lt.raidLoss} resource(s) plundered!</div>
+            <div class="pirate-loss">−${lt.raidLoss}</div>
+          </div>`;
+      } else if (lt.raidDefeated) {
+        // Pirates were defeated
+        pirateHTML = `
+          <div class="result-pirate defended fade-in">
+            <div class="pirate-icon">⚔️🛡️</div>
+            <div class="pirate-headline">Pirates attacked ${lt.raidTargetName}, but were defeated!</div>
+            <div class="pirate-detail">${lt.pirateCount} ship(s) repelled by the island's defense.</div>
+          </div>`;
+      } else {
+        // Another team was raided
+        pirateHTML = `
+          <div class="result-pirate other-raided fade-in">
+            <div class="pirate-icon">🏴‍☠️</div>
+            <div class="pirate-headline">${lt.raidTargetName} was raided by pirates!</div>
+            <div class="pirate-detail">${lt.pirateCount} ship(s) attacked. ${lt.raidDamage} got through the defenses.</div>
+          </div>`;
+      }
+    } else {
+      pirateHTML = `
+        <div class="result-pirate peaceful fade-in">
+          <div class="pirate-icon">🌊</div>
+          <div class="pirate-headline">No pirates this turn</div>
+          <div class="pirate-detail">The seas were calm.</div>
+        </div>`;
+    }
+
+    // Trade income
+    if (lt.tradeIncome > 0) {
+      tradeHTML = `<div class="result-item"><span class="label">🛤️ Trade Income</span><span class="value positive">+${lt.tradeIncome}</span></div>`;
+    }
+
+    // Road status — always shown
+    if (lt.roadCollapsed) {
+      roadHTML = `
+        <div class="result-road collapsed fade-in">
+          <div class="road-result-icon">🚧</div>
+          <div class="road-result-headline">The roads have fallen into disrepair!</div>
+          <div class="road-result-detail">Without maintenance, the road network has collapsed. Trade routes are closed.</div>
+        </div>`;
+    } else if (lt.roadJustCompleted) {
+      roadHTML = `
+        <div class="result-road completed fade-in">
+          <div class="road-result-icon">🎉🛤️</div>
+          <div class="road-result-headline">The Roads have been completed!</div>
+          <div class="road-result-detail">Trade routes are now open! All nations benefit from commerce.</div>
+        </div>`;
+    } else if (lt.roadBuilt && lt.roadBuiltBefore) {
+      roadHTML = `
+        <div class="result-road maintained fade-in">
+          <div class="road-result-icon">🛤️</div>
+          <div class="road-result-headline">The roads were maintained</div>
+          <div class="road-result-detail">Trade continues to flow across the island.</div>
+        </div>`;
+    } else {
+      roadHTML = `
+        <div class="result-road unfinished fade-in">
+          <div class="road-result-icon">🏗️</div>
+          <div class="road-result-headline">The roads are not yet finished</div>
+          <div class="road-result-detail">Progress: ${lt.roadProgress ?? 0} / 8 points invested.</div>
+        </div>`;
+    }
+  } else {
+    // No lastTurn data — fallback
+    const diff = newResources - prevResources;
+    const cls = diff > 0 ? 'positive' : diff < 0 ? 'negative' : '';
+    const prefix = diff > 0 ? '+' : '';
+    pirateHTML = `<div class="result-item"><span class="label">Net Change</span><span class="value ${cls}">${prefix}${diff}</span></div>`;
+  }
+
+  const formArea = document.getElementById('form-area');
+  formArea.innerHTML = `
+    <div class="results-panel fade-in">
+      <div class="results-title">📜 Turn ${turn} Results</div>
+      ${pirateHTML}
+      ${roadHTML}
+      ${tradeHTML}
+      <div class="result-item" style="border-top:1px solid rgba(212,168,84,0.15);padding-top:12px;margin-top:4px;">
+        <span class="label" style="font-weight:600;color:var(--text);">New Treasury</span>
+        <span class="value" style="font-size:1.2rem;color:var(--gold);">💰 ${newResources}</span>
+      </div>
+      <button class="continue-btn" onclick="loadState()">Continue →</button>
+    </div>`;
+}
+
+// ============================================================
+// FORM BINDING
+// ============================================================
+function bindForm(maxResources) {
+  const roadsInput = document.getElementById('roads');
+  const defenseInput = document.getElementById('defense');
+  const remaining = document.getElementById('remaining');
+  const submitBtn = document.getElementById('submitBtn');
+  if (!roadsInput) return;
+
+  function updateRemaining() {
+    const r = clamp(parseInt(roadsInput.value) || 0, 0, maxResources);
+    const d = clamp(parseInt(defenseInput.value) || 0, 0, maxResources);
+    const left = maxResources - r - d;
+    remaining.textContent = `Remaining: ${left}`;
+    remaining.classList.toggle('over', left < 0);
+    submitBtn.disabled = left < 0;
+  }
+
+  // +/- buttons
+  document.querySelectorAll('.num-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = document.getElementById(btn.dataset.target);
+      const delta = parseInt(btn.dataset.delta);
+      const val = clamp((parseInt(target.value) || 0) + delta, 0, maxResources);
+      target.value = val;
+      updateRemaining();
+    });
+  });
+
+  roadsInput.addEventListener('input', updateRemaining);
+  defenseInput.addEventListener('input', updateRemaining);
+
+  submitBtn.addEventListener('click', async () => {
+    const roads = clamp(parseInt(roadsInput.value) || 0, 0, maxResources);
+    const defense = clamp(parseInt(defenseInput.value) || 0, 0, maxResources);
+    if (roads + defense > maxResources) return;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting...';
+
+    try {
+      await apiPost({ action: 'submit', team: teamId, roads, defense });
+      submittedTurn = currentState.turn;
+      const formArea = document.getElementById('form-area');
+      formArea.innerHTML = renderWaitingHTML();
+      startPolling();
+    } catch (e) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = '⚔️ Submit Orders';
+      alert('Failed to submit. Please try again.\n' + e.message);
+    }
+  });
+
+  updateRemaining();
+}
+
+// ============================================================
+// POLLING
+// ============================================================
+function startPolling() {
+  stopPolling();
+  pollTimer = setInterval(pollForTurnAdvance, 5000);
+}
+
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+}
+
+async function pollForTurnAdvance() {
+  try {
+    const newState = await apiGet('getState');
+    if (newState.turn !== submittedTurn) {
+      const oldState = { ...currentState };
+      currentState = newState;
+      renderResults(oldState, currentState);
+    }
+  } catch (e) {
+    // Silently retry on next poll
+  }
+}
+
+// ============================================================
+// INIT
+// ============================================================
+async function loadState() {
+  if (!SCRIPT_URL || SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL_HERE') {
+    return renderConfigError();
+  }
+  if (!teamId) {
+    return renderTeamError();
+  }
+
+  // Show loading with whatever team info we have (might be placeholder)
+  if (team) {
+    setTeamColor(team.color);
+  }
+  renderLoading();
+
+  try {
+    const state = await apiGet('getState');
+    if (!state.success) {
+      return renderTeamError();
+    }
+    resolveTeamFromState(state);
+    setTeamColor(team.color);
+    currentState = state;
+    renderGame(state);
+  } catch (e) {
+    renderNetworkError();
+  }
+}
+
+// Boot
+if (!SCRIPT_URL || SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL_HERE') {
+  renderConfigError();
+} else if (!teamId) {
+  renderTeamError();
+} else {
+  loadState();
+}
+</script>
+
+</body>
+</html>
