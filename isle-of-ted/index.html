@@ -440,6 +440,48 @@
     margin-top: 6px;
     font-family: 'Cinzel', serif;
   }
+
+  /* Road result panels */
+  .result-road {
+    text-align: center;
+    padding: 14px 12px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+  }
+  .result-road.collapsed {
+    background: rgba(204, 68, 68, 0.12);
+    border: 1px solid rgba(204, 68, 68, 0.35);
+  }
+  .result-road.completed {
+    background: rgba(90, 138, 74, 0.15);
+    border: 1px solid rgba(90, 138, 74, 0.4);
+  }
+  .result-road.maintained {
+    background: rgba(212, 168, 84, 0.08);
+    border: 1px solid rgba(212, 168, 84, 0.2);
+  }
+  .result-road.unfinished {
+    background: rgba(158, 147, 127, 0.08);
+    border: 1px solid rgba(158, 147, 127, 0.2);
+  }
+  .road-result-icon {
+    font-size: 2rem;
+    margin-bottom: 4px;
+  }
+  .road-result-headline {
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 3px;
+  }
+  .collapsed .road-result-headline { color: var(--danger); }
+  .completed .road-result-headline { color: var(--success); }
+  .maintained .road-result-headline { color: var(--gold); }
+  .unfinished .road-result-headline { color: var(--text-dim); }
+  .road-result-detail {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+  }
   .continue-btn {
     margin-top: 18px;
     padding: 14px 32px;
@@ -794,11 +836,35 @@ function renderResults(oldState, newState) {
       tradeHTML = `<div class="result-item"><span class="label">🛤️ Trade Income</span><span class="value positive">+${lt.tradeIncome}</span></div>`;
     }
 
-    // Road events
+    // Road status — always shown
     if (lt.roadCollapsed) {
-      roadHTML = `<div class="result-item"><span class="label">⚠️ Roads Collapsed!</span><span class="value negative">Unmaintained</span></div>`;
-    } else if (lt.roadBuilt && oldState.roadBuilt !== true) {
-      roadHTML = `<div class="result-item"><span class="label">🎉 Roads Completed!</span><span class="value positive">Trade Open</span></div>`;
+      roadHTML = `
+        <div class="result-road collapsed fade-in">
+          <div class="road-result-icon">🚧</div>
+          <div class="road-result-headline">The roads have fallen into disrepair!</div>
+          <div class="road-result-detail">Without maintenance, the road network has collapsed. Trade routes are closed.</div>
+        </div>`;
+    } else if (lt.roadJustCompleted) {
+      roadHTML = `
+        <div class="result-road completed fade-in">
+          <div class="road-result-icon">🎉🛤️</div>
+          <div class="road-result-headline">The Roads have been completed!</div>
+          <div class="road-result-detail">Trade routes are now open! All nations benefit from commerce.</div>
+        </div>`;
+    } else if (lt.roadBuilt && lt.roadBuiltBefore) {
+      roadHTML = `
+        <div class="result-road maintained fade-in">
+          <div class="road-result-icon">🛤️</div>
+          <div class="road-result-headline">The roads were maintained</div>
+          <div class="road-result-detail">Trade continues to flow across the island.</div>
+        </div>`;
+    } else {
+      roadHTML = `
+        <div class="result-road unfinished fade-in">
+          <div class="road-result-icon">🏗️</div>
+          <div class="road-result-headline">The roads are not yet finished</div>
+          <div class="road-result-detail">Progress: ${lt.roadProgress ?? 0} / 8 points invested.</div>
+        </div>`;
     }
   } else {
     // No lastTurn data — fallback

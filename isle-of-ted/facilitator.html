@@ -666,6 +666,7 @@
             <th>Island Defense</th>
             <th>Outcome</th>
             <th>Raids</th>
+            <th>Roads</th>
           </tr>
         </thead>
         <tbody id="history-tbody"></tbody>
@@ -1049,23 +1050,32 @@ function toggleHistory() {
 function renderHistory(history) {
   const tbody = document.getElementById('history-tbody');
   if (!history.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="color:var(--text-muted); text-align:center; padding:20px;">No turns resolved yet.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-muted); text-align:center; padding:20px;">No turns resolved yet.</td></tr>';
     return;
   }
 
   tbody.innerHTML = history.map(h => {
-    const raids = h.raids || [];
-    const raidsText = raids.length > 0
-      ? raids.map(r => `${r.team}: -${r.loss}`).join(', ')
-      : '<span style="color:var(--success)">None</span>';
-    const outcome = h.defended ? '🛡️ Defended' : (h.pirateCount === 0 ? '🌊 Calm' : '💥 Raided');
+    let outcome, raidsText;
+    if (h.pirateCount === 0) {
+      outcome = '🌊 No pirates';
+      raidsText = '<span style="color:var(--text-muted)">—</span>';
+    } else if (h.defended) {
+      outcome = '🛡️ Defended';
+      raidsText = `<span style="color:var(--success)">Target: ${h.raidTargetName} (saved!)</span>`;
+    } else {
+      outcome = '💥 Raided';
+      raidsText = `<span style="color:var(--danger)">${h.raidTargetName}: −${h.raidDamage}</span>`;
+    }
+
+    const roadIcon = h.roadCollapsed ? '🚧' : h.roadBuilt ? '🛤️' : '🏗️';
 
     return `<tr>
       <td><strong>${h.turn}</strong></td>
       <td>${h.pirateCount} ${'🏴‍☠️'.repeat(Math.min(h.pirateCount, 4))}</td>
-      <td>${h.totalDefense || '—'}</td>
+      <td>${h.totalDefense ?? '—'}</td>
       <td>${outcome}</td>
       <td>${raidsText}</td>
+      <td>${roadIcon}</td>
     </tr>`;
   }).reverse().join('');
 }
