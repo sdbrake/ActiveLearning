@@ -673,6 +673,21 @@
     </div>
   </div>
 
+  <!-- Team Links & Tokens -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🔗</span> Team Links</div>
+    <p style="color:var(--text-muted); margin-bottom:12px; font-size:0.9rem;">
+      Each team gets a unique secret URL. Share via QR code or link. Click "Regenerate" to create new tokens (invalidates old links).
+    </p>
+    <div id="token-grid" style="display:grid; gap:10px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));">
+      <!-- Populated by JS -->
+    </div>
+    <div style="margin-top:16px; display:flex; gap:12px; align-items:center;">
+      <button class="btn btn-outline" onclick="loadTokens()">🔄 Refresh Links</button>
+      <button class="btn btn-pirate" onclick="confirmAction('Regenerate Tokens', 'This will create NEW secret URLs for all teams. Old links will stop working. Continue?', regenerateTokens)">🔑 Regenerate All Tokens</button>
+    </div>
+  </div>
+
   <!-- Game Controls -->
   <div class="section">
     <div class="section-title"><span class="icon">⚙️</span> Game Controls</div>
@@ -745,6 +760,7 @@ async function verifyKey() {
     document.getElementById('main-app').style.display = 'block';
     gameState = data;
     renderDashboard(data);
+    loadTokens();
     startAutoRefresh();
   } catch (err) {
     document.getElementById('login-error').textContent = 'Connection failed. Check URL and try again.';
@@ -1132,6 +1148,54 @@ async function forceRefresh() {
   toast('Refreshing…');
   await refreshDashboard();
   toast('Dashboard updated.');
+}
+
+// ════════════════════════════════════════════════════
+// TEAM TOKENS / LINKS
+// ════════════════════════════════════════════════════
+const BASE_GAME_URL = window.location.origin + window.location.pathname.replace('facilitator.html', '');
+
+async function loadTokens() {
+  try {
+    const data = await apiCall('getTokens', {});
+    if (!data.success) { toast('Failed to load tokens: ' + (data.error || ''), true); return; }
+    renderTokens(data.teams);
+  } catch (e) {
+    toast('Error loading tokens: ' + e.message, true);
+  }
+}
+
+function renderTokens(teams) {
+  const grid = document.getElementById('token-grid');
+  grid.innerHTML = '';
+  for (const id of Object.keys(teams)) {
+    const t = teams[id];
+    const color = TEAM_COLORS[t.name] || '#888';
+    const fullUrl = BASE_GAME_URL + '?team=' + encodeURIComponent(t.token);
+    const qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(fullUrl);
+
+    grid.innerHTML += `
+      <div style="background:${hexToRGBA(color, 0.1)}; border:1px solid ${hexToRGBA(color, 0.4)}; border-radius:10px; padding:14px; display:flex; gap:14px; align-items:center;">
+        <img src="${qrApiUrl}" alt="QR" style="width:90px; height:90px; border-radius:6px; background:#fff; padding:4px;">
+        <div style="flex:1; min-width:0;">
+          <div style="font-family:'Cinzel',serif; font-weight:700; color:${color}; font-size:1rem; margin-bottom:4px;">${t.name}</div>
+          <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:6px; word-break:break-all;">${fullUrl}</div>
+          <button class="btn btn-outline btn-sm" style="font-size:0.75rem; padding:4px 10px;"
+            onclick="navigator.clipboard.writeText('${fullUrl}'); toast('Link copied!');">📋 Copy</button>
+        </div>
+      </div>`;
+  }
+}
+
+async function regenerateTokens() {
+  try {
+    const data = await apiCall('regenerateTokens', {});
+    if (!data.success) { toast('Failed: ' + (data.error || ''), true); return; }
+    toast('✅ New tokens generated! Old links are now invalid.');
+    loadTokens();
+  } catch (e) {
+    toast('Error: ' + e.message, true);
+  }
 }
 
 // ════════════════════════════════════════════════════

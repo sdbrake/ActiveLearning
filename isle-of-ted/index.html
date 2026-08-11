@@ -477,7 +477,7 @@
 // ============================================================
 // CONFIGURATION — Replace this URL after deploying Apps Script
 // ============================================================
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzceiymuHsxlML1vzQOcg23VH2dVVEF_vqKJ-QwjdPSP8Dyd91WLXSmnqmRj_XEoeDQkw/exec';
+const SCRIPT_URL = 'YOUR_APPS_SCRIPT_URL_HERE';
 
 const TEAMS = {
   amaurot:   { name: 'Amaurot',       color: '#8B4513', letter: 'A' },
@@ -488,17 +488,31 @@ const TEAMS = {
   forostar:  { name: 'Forostar',      color: '#7B337D', letter: 'F' },
 };
 
+// Also map display names to colors for token-based lookups
+const NAME_COLORS = {};
+for (const k in TEAMS) { NAME_COLORS[TEAMS[k].name] = TEAMS[k]; }
+
 // ============================================================
 // STATE
 // ============================================================
 const app = document.getElementById('app');
 const params = new URLSearchParams(window.location.search);
-const teamId = (params.get('team') || '').toLowerCase().trim();
-const team = TEAMS[teamId];
+const teamId = (params.get('team') || '').trim();
+// team might be a token or a name — we won't know until the API responds
+let team = TEAMS[teamId.toLowerCase()] || null;
 
 let currentState = null;
 let submittedTurn = null;
 let pollTimer = null;
+
+/**
+ * After the first API response, resolve team info from the returned name.
+ */
+function resolveTeamFromState(state) {
+  if (!team && state.name) {
+    team = NAME_COLORS[state.name] || TEAMS[state.team] || { name: state.name, color: '#d4a854', letter: '?' };
+  }
+}
 
 // ============================================================
 // HELPERS
@@ -552,7 +566,7 @@ function renderTeamError() {
     <div class="message-screen fade-in">
       <div class="icon">🏝️</div>
       <h2>Unknown Faction</h2>
-      <p>No team found. Make sure your URL includes <strong>?team=amaurot</strong> (or bensalem, civitas, doriath, eldalonde, forostar).</p>
+      <p>No team found. Make sure you're using the link or QR code provided by your facilitator.</p>
     </div>`;
 }
 
@@ -567,10 +581,11 @@ function renderNetworkError(msg) {
 }
 
 function renderLoading() {
+  const name = team ? team.name : 'Loading...';
   app.innerHTML = `
     <div class="header">
       <div class="game-title">Isle of Ted</div>
-      <div class="team-name">${team.name}</div>
+      <div class="team-name">${name}</div>
     </div>
     <div class="resource-panel">
       <div class="resource-label">Resources</div>
@@ -806,15 +821,23 @@ async function loadState() {
   if (!SCRIPT_URL || SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL_HERE') {
     return renderConfigError();
   }
-  if (!team) {
+  if (!teamId) {
     return renderTeamError();
   }
 
-  setTeamColor(team.color);
+  // Show loading with whatever team info we have (might be placeholder)
+  if (team) {
+    setTeamColor(team.color);
+  }
   renderLoading();
 
   try {
     const state = await apiGet('getState');
+    if (!state.success) {
+      return renderTeamError();
+    }
+    resolveTeamFromState(state);
+    setTeamColor(team.color);
     currentState = state;
     renderGame(state);
   } catch (e) {
@@ -823,14 +846,11 @@ async function loadState() {
 }
 
 // Boot
-if (!team) {
-  if (!SCRIPT_URL || SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL_HERE') {
-    renderConfigError();
-  } else {
-    renderTeamError();
-  }
+if (!SCRIPT_URL || SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL_HERE') {
+  renderConfigError();
+} else if (!teamId) {
+  renderTeamError();
 } else {
-  setTeamColor(team.color);
   loadState();
 }
 </script>
