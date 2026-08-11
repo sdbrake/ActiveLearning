@@ -1167,12 +1167,13 @@ async function forceRefresh() {
 const BASE_GAME_URL = window.location.origin + window.location.pathname.replace('facilitator.html', '');
 
 async function endGame() {
+  toast('Ending game...');
   try {
     const data = await apiCall('endGame', {});
-    if (!data.success) { toast('Failed: ' + (data.error || ''), true); return; }
+    if (!data.success) { toast('End game failed: ' + (data.error || 'unknown — have you updated the Apps Script deployment?'), true); return; }
     toast('🏆 Game ended! Scoreboard is now visible to all teams.');
     await refreshDashboard();
-  } catch(e) { toast('Error: ' + e.message, true); }
+  } catch(e) { toast('End game error: ' + e.message, true); }
 }
 
 async function loadTokens() {
@@ -1233,7 +1234,7 @@ function toast(msg, isError = false) {
   clearTimeout(toastTimeout);
   toastTimeout = setTimeout(() => {
     el.className = 'toast';
-  }, 3000);
+  }, isError ? 8000 : 3000);
 }
 
 // ════════════════════════════════════════════════════
