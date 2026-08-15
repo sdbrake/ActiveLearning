@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Trading Cards — IPE Trade Simulation</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy: #0f1729;
+  --slate: #1a2540;
+  --slate-light: #243155;
+  --gold: #d4a843;
+  --gold-dim: #9a7a30;
+  --red: #c0392b;
+  --red-light: #e74c3c;
+  --green: #27ae60;
+  --green-light: #2ecc71;
+  --text: #e8e8e8;
+  --text-dim: #8899aa;
+  --border: #2a3a5a;
+  --card-bg: #1e2d4d;
+  --card-border: #3a4f7a;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--navy);
+  color: var(--text);
+  min-height: 100vh;
+  padding-bottom: 80px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Toast system */
+#toast-container {
+  position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+  z-index: 9999; display: flex; flex-direction: column; gap: 8px;
+  width: 90%; max-width: 400px; pointer-events: none;
+}
+.toast {
+  padding: 12px 16px; border-radius: 8px; font-size: 14px;
+  animation: toastIn 0.3s ease; pointer-events: auto;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+.toast.success { background: var(--green); color: #fff; }
+.toast.error { background: var(--red); color: #fff; }
+.toast.info { background: var(--slate-light); color: var(--text); border: 1px solid var(--border); }
+@keyframes toastIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-20px); } }
+
+/* Phase banner */
+#phase-banner {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+  text-align: center; font-weight: 700; font-size: 15px;
+  padding: 10px 16px; transform: translateY(-100%);
+  transition: transform 0.4s ease;
+  text-transform: uppercase; letter-spacing: 1px;
+}
+#phase-banner.show { transform: translateY(0); }
+#phase-banner.trade-open { background: linear-gradient(135deg, #1a6b3c, #27ae60); color: #fff; }
+#phase-banner.domestic { background: linear-gradient(135deg, #8e44ad, #9b59b6); color: #fff; }
+#phase-banner.rivalry { background: linear-gradient(135deg, #c0392b, #e74c3c); color: #fff; }
+#phase-banner.pariah { background: linear-gradient(135deg, #7f8c8d, #95a5a6); color: #1a1a1a; }
+#phase-banner.ended { background: linear-gradient(135deg, var(--gold-dim), var(--gold)); color: var(--navy); }
+
+/* Header */
+.header {
+  background: linear-gradient(180deg, var(--slate), var(--navy));
+  padding: 20px 16px 16px;
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+}
+.header .country-name {
+  font-size: 28px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase;
+  color: var(--gold);
+}
+.header .score-display {
+  font-size: 40px; font-weight: 800;
+  color: var(--gold); margin: 4px 0;
+  text-shadow: 0 0 20px rgba(212,168,67,0.3);
+}
+.header .score-label { font-size: 11px; text-transform: uppercase; color: var(--text-dim); letter-spacing: 2px; }
+.header .round-phase {
+  display: flex; justify-content: center; gap: 10px; margin-top: 8px; flex-wrap: wrap;
+}
+.badge {
+  display: inline-block; padding: 4px 10px; border-radius: 12px;
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.badge-round { background: var(--slate-light); color: var(--text-dim); border: 1px solid var(--border); }
+.badge-phase { background: var(--green); color: #fff; }
+.badge-phase.setup { background: var(--text-dim); }
+.badge-phase.ended { background: var(--gold); color: var(--navy); }
+.badge-phase.domestic { background: #8e44ad; }
+
+/* Section containers */
+.section {
+  margin: 12px; padding: 16px;
+  background: var(--slate);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+.section-title {
+  font-size: 13px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1.5px; color: var(--text-dim); margin-bottom: 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-title .icon { font-size: 16px; }
+
+/* Card display */
+.hand-grid {
+  display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+}
+.card-item {
+  width: 80px; height: 110px;
+  background: var(--card-bg);
+  border: 2px solid var(--card-border);
+  border-radius: 8px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.card-item:active { transform: scale(0.95); }
+.card-item .card-rank {
+  font-size: 28px; font-weight: 800; color: #fff;
+  line-height: 1;
+}
+.card-item .card-name {
+  font-size: 10px; color: var(--text-dim);
+  margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.card-item .card-count {
+  position: absolute; top: -6px; right: -6px;
+  background: var(--gold); color: var(--navy);
+  font-size: 11px; font-weight: 800;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.card-item .card-price {
+  position: absolute; bottom: 4px;
+  font-size: 9px; color: var(--gold-dim);
+}
+.card-item.card-ace { border-color: #e74c3c; }
+.card-item.card-ace .card-rank { color: #e74c3c; }
+.card-item.card-king { border-color: #f39c12; }
+.card-item.card-king .card-rank { color: #f39c12; }
+.card-item.card-queen { border-color: #9b59b6; }
+.card-item.card-queen .card-rank { color: #9b59b6; }
+.card-item.card-jack { border-color: #3498db; }
+.card-item.card-jack .card-rank { color: #3498db; }
+.card-item.card-ten { border-color: #1abc9c; }
+.card-item.card-ten .card-rank { color: #1abc9c; }
+
+.empty-hand {
+  text-align: center; color: var(--text-dim); padding: 24px;
+  font-style: italic; font-size: 14px;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 12px 20px; border: none; border-radius: 8px;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: all 0.15s ease; width: 100%;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.btn-primary { background: var(--gold); color: var(--navy); }
+.btn-primary:hover:not(:disabled) { background: #e0b84d; }
+.btn-success { background: var(--green); color: #fff; }
+.btn-success:hover:not(:disabled) { background: var(--green-light); }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-danger:hover:not(:disabled) { background: var(--red-light); }
+.btn-outline {
+  background: transparent; color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn-outline:hover:not(:disabled) { background: var(--slate-light); }
+.btn-sm { padding: 8px 14px; font-size: 12px; width: auto; }
+
+/* Forms */
+select, input {
+  width: 100%; padding: 10px 12px; background: var(--card-bg);
+  border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-size: 14px;
+  appearance: none; -webkit-appearance: none;
+}
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238899aa' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+label { font-size: 12px; color: var(--text-dim); display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.form-group { margin-bottom: 12px; }
+
+/* Sell / Produce action rows */
+.action-row {
+  display: flex; gap: 8px; align-items: stretch; margin-bottom: 10px;
+}
+.action-row select { flex: 1; }
+.action-row .btn { width: auto; flex-shrink: 0; white-space: nowrap; }
+
+/* Production buttons */
+.produce-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+.produce-btn {
+  flex: 1; min-width: 120px; padding: 14px 12px;
+  background: var(--card-bg); border: 2px solid var(--border);
+  border-radius: 10px; cursor: pointer; text-align: center;
+  transition: all 0.15s ease; position: relative;
+}
+.produce-btn:active { transform: scale(0.97); }
+.produce-btn:hover { border-color: var(--gold-dim); background: var(--slate-light); }
+.produce-btn .prod-card { font-size: 20px; font-weight: 700; }
+.produce-btn .prod-label { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+.produce-btn .bonus-badge {
+  position: absolute; top: -8px; right: -8px;
+  background: #8e44ad; color: #fff;
+  font-size: 10px; font-weight: 700; padding: 2px 8px;
+  border-radius: 10px; white-space: nowrap;
+}
+
+/* Pending status */
+.pending-status {
+  padding: 12px; background: rgba(212,168,67,0.1);
+  border: 1px solid var(--gold-dim); border-radius: 8px;
+  font-size: 13px; color: var(--gold); text-align: center;
+  margin-top: 8px;
+}
+
+/* Trade proposals */
+.proposal-card {
+  padding: 12px; background: var(--card-bg);
+  border: 1px solid var(--border); border-radius: 8px;
+  margin-bottom: 8px;
+}
+.proposal-card .proposal-text {
+  font-size: 13px; margin-bottom: 8px; line-height: 1.4;
+}
+.proposal-card .proposal-text strong { color: var(--gold); }
+.proposal-actions { display: flex; gap: 8px; }
+.proposal-status {
+  display: inline-block; padding: 2px 8px; border-radius: 6px;
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+}
+.proposal-status.pending { background: rgba(241,196,15,0.2); color: #f1c40f; }
+.proposal-status.accepted { background: rgba(39,174,96,0.2); color: var(--green-light); }
+.proposal-status.rejected { background: rgba(192,57,43,0.2); color: var(--red-light); }
+.proposal-status.confirmed { background: rgba(212,168,67,0.2); color: var(--gold); }
+
+/* Trade form modal */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7); z-index: 500;
+  display: flex; align-items: flex-end; justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+.modal-content {
+  background: var(--slate); width: 100%; max-width: 440px;
+  border-radius: 16px 16px 0 0; padding: 24px 16px 32px;
+  animation: slideUp 0.3s ease;
+  max-height: 80vh; overflow-y: auto;
+}
+.modal-content h3 {
+  font-size: 18px; margin-bottom: 16px; text-align: center;
+  color: var(--gold);
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+/* Prices table */
+.prices-table {
+  width: 100%; border-collapse: collapse;
+}
+.prices-table th {
+  text-align: left; font-size: 11px; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.5px; padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.prices-table td {
+  padding: 8px; font-size: 14px; border-bottom: 1px solid rgba(42,58,90,0.5);
+}
+.prices-table .price-val { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.prices-table tr.highlight-high td { color: var(--gold); }
+.prices-table tr.highlight-low td { color: var(--red-light); }
+
+/* Scoreboard */
+.scoreboard-toggle {
+  width: 100%; background: none; border: none;
+  color: var(--text-dim); font-size: 13px; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700;
+}
+.scoreboard-toggle .chevron { transition: transform 0.2s ease; font-size: 14px; }
+.scoreboard-toggle .chevron.open { transform: rotate(180deg); }
+.scoreboard-list { margin-top: 12px; }
+.score-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 10px; border-radius: 6px; margin-bottom: 4px;
+  font-size: 14px;
+}
+.score-row:nth-child(odd) { background: rgba(255,255,255,0.03); }
+.score-row .score-name { display: flex; align-items: center; gap: 6px; }
+.score-row .score-val { font-weight: 700; color: var(--gold); font-variant-numeric: tabular-nums; }
+.score-row.is-you { background: rgba(212,168,67,0.1); border: 1px solid var(--gold-dim); }
+.score-row .rival-badge {
+  font-size: 9px; background: var(--red); color: #fff;
+  padding: 1px 6px; border-radius: 4px; text-transform: uppercase; font-weight: 700;
+}
+.score-row .pariah-badge {
+  font-size: 9px; background: #7f8c8d; color: #fff;
+  padding: 1px 6px; border-radius: 4px; text-transform: uppercase; font-weight: 700;
+}
+.score-row .sanctioned-badge {
+  font-size: 9px; background: #e67e22; color: #fff;
+  padding: 1px 6px; border-radius: 4px; text-transform: uppercase; font-weight: 700;
+}
+
+/* Setup / Error screens */
+.full-screen-msg {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 80vh; text-align: center; padding: 32px;
+}
+.full-screen-msg .msg-icon { font-size: 48px; margin-bottom: 16px; }
+.full-screen-msg h2 { font-size: 22px; color: var(--gold); margin-bottom: 8px; }
+.full-screen-msg p { color: var(--text-dim); font-size: 15px; line-height: 1.5; max-width: 300px; }
+
+/* Final scoreboard */
+.final-scoreboard { text-align: center; }
+.final-scoreboard h2 { font-size: 24px; color: var(--gold); margin-bottom: 16px; }
+.final-score-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px; margin-bottom: 6px;
+  background: var(--card-bg); border-radius: 8px;
+  font-size: 16px;
+}
+.final-score-row.rank-1 { background: linear-gradient(135deg, rgba(212,168,67,0.3), rgba(212,168,67,0.1)); border: 1px solid var(--gold); }
+.final-score-row .rank { width: 30px; text-align: center; font-weight: 800; color: var(--gold); }
+.final-score-row .final-score-val { font-weight: 800; color: var(--gold); font-size: 20px; }
+
+/* Animations */
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+.pulse { animation: pulse 2s infinite; }
+
+/* Sanctioned option style */
+.sanctioned-option { color: #7f8c8d; }
+
+/* Sub-section dividers */
+.sub-section { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+.sub-section:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+.sub-label { font-size: 12px; font-weight: 600; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* Exchange instruction */
+.exchange-msg {
+  padding: 10px 12px; background: rgba(39,174,96,0.15);
+  border: 1px solid var(--green); border-radius: 8px;
+  font-size: 13px; color: var(--green-light); text-align: center;
+  margin-top: 6px;
+}
+</style>
+</head>
+<body>
+
+<div id="toast-container"></div>
+<div id="phase-banner"></div>
+
+<div id="app">
+  <!-- Populated by JS -->
+</div>
+
+<script>
+const SCRIPT_URL = '';
+
+// ── State ──
+let token = null;
+let teamData = null;
+let gameState = null;
+let scores = [];
+let proposals = [];
+let pendingSell = null;
+let pendingProduce = null;
+let scoreboardOpen = false;
+let tradeModalOpen = false;
+let pollTimer = null;
+let proposalTimer = null;
+let lastBanner = '';
+
+const CARD_TYPES = ['Ace', 'King', 'Queen', 'Jack', 'Ten'];
+const CARD_SYMBOLS = { Ace: 'A', King: 'K', Queen: 'Q', Jack: 'J', Ten: '10' };
+const CARD_ICONS = { Ace: '🂡', King: '🂮', Queen: '🂭', Jack: '🂫', Ten: '🂪' };
+
+// ── Init ──
+function init() {
+  const params = new URLSearchParams(window.location.search);
+  token = params.get('token');
+
+  if (!SCRIPT_URL) {
+    renderSetupError();
+    return;
+  }
+  if (!token) {
+    renderNoToken();
+    return;
+  }
+
+  renderLoading();
+  fetchTeamInfo();
+  fetchScoreboard();
+  startPolling();
+}
+
+// ── API ──
+async function apiCall(body) {
+  try {
+    const resp = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await resp.json();
+    if (!data.success) {
+      showToast(data.message || data.error || 'Request failed', 'error');
+    }
+    return data;
+  } catch (e) {
+    showToast('Network error — check your connection', 'error');
+    return { success: false, error: e.message };
+  }
+}
+
+async function fetchTeamInfo() {
+  const data = await apiCall({ action: 'teaminfo', token });
+  if (data.success) {
+    teamData = data.team;
+    gameState = data.gameState;
+    if (data.pendingSell) pendingSell = data.pendingSell;
+    if (data.pendingProduce) pendingProduce = data.pendingProduce;
+    render();
+    updateBanner();
+  }
+}
+
+async function fetchScoreboard() {
+  const data = await apiCall({ action: 'scoreboard' });
+  if (data.success) {
+    scores = data.scores || [];
+    if (scoreboardOpen || (gameState && gameState.phase === 'ended')) {
+      render();
+    }
+  }
+}
+
+async function fetchProposals() {
+  if (!gameState || !gameState.tradeOpen) return;
+  const data = await apiCall({ action: 'getproposals', token });
+  if (data.success) {
+    proposals = data.proposals || [];
+    render();
+  }
+}
+
+async function doSell(card) {
+  const data = await apiCall({ action: 'requestsell', token, card });
+  if (data.success) {
+    pendingSell = data.pendingSell || { card, points: getPrice(card) };
+    showToast('Sell request submitted!', 'success');
+    fetchTeamInfo();
+  }
+}
+
+async function doProduce(card) {
+  const data = await apiCall({ action: 'requestproduce', token, card });
+  if (data.success) {
+    pendingProduce = data.pendingProduce || { card };
+    showToast('Production request submitted!', 'success');
+    fetchTeamInfo();
+  }
+}
+
+async function doProposeTrade(targetTeamId, offerCard, requestCard) {
+  const data = await apiCall({ action: 'proposetrade', token, targetTeamId, offerCard, requestCard });
+  if (data.success) {
+    showToast('Trade proposed!', 'success');
+    tradeModalOpen = false;
+    fetchProposals();
+    render();
+  }
+}
+
+async function doRespondTrade(proposalId, accept) {
+  const data = await apiCall({ action: 'respondtrade', token, proposalId, accept });
+  if (data.success) {
+    showToast(accept ? 'Trade accepted!' : 'Trade rejected', accept ? 'success' : 'info');
+    fetchProposals();
+    fetchTeamInfo();
+  }
+}
+
+async function doCancelTrade(proposalId) {
+  const data = await apiCall({ action: 'canceltrade', token, proposalId });
+  if (data.success) {
+    showToast('Trade cancelled', 'info');
+    fetchProposals();
+  }
+}
+
+// ── Polling ──
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  if (proposalTimer) clearInterval(proposalTimer);
+  pollTimer = setInterval(() => {
+    fetchTeamInfo();
+    fetchScoreboard();
+  }, 5000);
+  proposalTimer = setInterval(() => {
+    if (gameState && gameState.tradeOpen) fetchProposals();
+  }, 5000);
+}
+
+// ── Helpers ──
+function getPrice(card) {
+  return (teamData && teamData.prices && teamData.prices[card]) || 0;
+}
+
+function getHandCards() {
+  if (!teamData || !teamData.hand) return [];
+  const cards = [];
+  for (const card of CARD_TYPES) {
+    const count = teamData.hand[card] || 0;
+    if (count > 0) cards.push({ name: card, count });
+  }
+  return cards;
+}
+
+function totalHandCards() {
+  return getHandCards().reduce((s, c) => s + c.count, 0);
+}
+
+function getSanctionedTeams() {
+  if (!gameState || !gameState.sanctions) return [];
+  return gameState.sanctions;
+}
+
+function getMyRival() {
+  if (!gameState || !gameState.rivalries || !teamData) return null;
+  for (const pair of gameState.rivalries) {
+    if (pair.includes(teamData.id)) {
+      return pair.find(id => id !== teamData.id);
+    }
+  }
+  return null;
+}
+
+function getTeamName(id) {
+  const s = scores.find(s => s.id === id);
+  return s ? s.name : 'Country ' + id;
+}
+
+// ── Toast ──
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  container.appendChild(el);
+  const duration = type === 'error' ? 8000 : 3000;
+  setTimeout(() => {
+    el.style.animation = 'toastOut 0.3s ease forwards';
+    setTimeout(() => el.remove(), 300);
+  }, duration);
+}
+
+// ── Banner ──
+function updateBanner() {
+  const banner = document.getElementById('phase-banner');
+  if (!gameState) { banner.className = ''; return; }
+
+  let text = '';
+  let cls = '';
+
+  if (gameState.phase === 'ended') {
+    text = '🏆 Game Over — Final Scores';
+    cls = 'ended';
+  } else if (gameState.tradeOpen) {
+    text = '🤝 Trade Window Open';
+    cls = 'trade-open';
+  } else if (gameState.domesticInterests && teamData) {
+    text = '🏛 Domestic Interests Active — ' + (teamData.domesticGood || '') + ' bonus!';
+    cls = 'domestic';
+  }
+
+  // Rivalry / pariah override for a moment
+  if (gameState.rivalries && gameState.rivalries.length > 0 && teamData) {
+    const rival = getMyRival();
+    if (rival && lastBanner !== 'rivalry-shown') {
+      text = '⚔️ Rivalry! You vs ' + getTeamName(rival) + ' — outscore them!';
+      cls = 'rivalry';
+      lastBanner = 'rivalry-shown';
+      banner.textContent = text;
+      banner.className = 'show ' + cls;
+      setTimeout(() => updateBanner(), 6000);
+      return;
+    }
+  }
+  if (gameState.pariahTeam && lastBanner !== 'pariah-shown') {
+    text = '⚠️ ' + getTeamName(gameState.pariahTeam) + ' is a Pariah State!';
+    cls = 'pariah';
+    lastBanner = 'pariah-shown';
+    banner.textContent = text;
+    banner.className = 'show ' + cls;
+    setTimeout(() => updateBanner(), 6000);
+    return;
+  }
+
+  if (text) {
+    banner.textContent = text;
+    banner.className = 'show ' + cls;
+  } else {
+    banner.className = '';
+    lastBanner = '';
+  }
+}
+
+// ── Render ──
+function render() {
+  const app = document.getElementById('app');
+  if (!teamData || !gameState) return;
+
+  if (gameState.phase === 'setup') {
+    app.innerHTML = renderWaiting();
+    return;
+  }
+
+  if (gameState.phase === 'ended') {
+    app.innerHTML = renderHeader() + renderFinalScoreboard();
+    return;
+  }
+
+  app.innerHTML = [
+    renderHeader(),
+    renderHand(),
+    renderActions(),
+    gameState.tradeOpen ? renderTrade() : '',
+    renderPricesTable(),
+    renderScoreboardSection()
+  ].join('');
+
+  if (tradeModalOpen) renderTradeModal();
+  bindEvents();
+}
+
+function renderLoading() {
+  document.getElementById('app').innerHTML = `
+    <div class="full-screen-msg">
+      <div class="msg-icon pulse">🃏</div>
+      <h2>Connecting...</h2>
+      <p>Loading your team data</p>
+    </div>`;
+}
+
+function renderSetupError() {
+  document.getElementById('app').innerHTML = `
+    <div class="full-screen-msg">
+      <div class="msg-icon">⚙️</div>
+      <h2>Setup Required</h2>
+      <p>The game server URL hasn't been configured yet. Ask your facilitator to deploy the backend and update the SCRIPT_URL.</p>
+    </div>`;
+}
+
+function renderNoToken() {
+  document.getElementById('app').innerHTML = `
+    <div class="full-screen-msg">
+      <div class="msg-icon">🔑</div>
+      <h2>No Team Token</h2>
+      <p>Ask your facilitator for the team link or scan the QR code to join.</p>
+    </div>`;
+}
+
+function renderWaiting() {
+  return `
+    <div class="full-screen-msg">
+      <div class="msg-icon pulse">🃏</div>
+      <h2>${esc(teamData.name || 'Your Team')}</h2>
+      <p>Waiting for the game to begin...</p>
+      <p style="margin-top:8px;font-size:13px;color:var(--text-dim)">The facilitator will start Round 1 shortly.</p>
+    </div>`;
+}
+
+function renderHeader() {
+  const phaseName = formatPhase();
+  const phaseClass = gameState.phase === 'ended' ? 'ended' : (gameState.domesticInterests ? 'domestic' : '');
+  return `
+    <div class="header">
+      <div class="country-name">${esc(teamData.name || 'Your Team')}</div>
+      <div class="score-label">Score</div>
+      <div class="score-display">${teamData.score != null ? teamData.score : '—'}</div>
+      <div class="round-phase">
+        <span class="badge badge-round">Round ${gameState.round || '?'}</span>
+        <span class="badge badge-phase ${phaseClass}">${esc(phaseName)}</span>
+        ${gameState.tradeOpen ? '<span class="badge badge-phase">Trade Open</span>' : ''}
+        ${gameState.domesticInterests ? '<span class="badge badge-phase domestic">Domestic Interests</span>' : ''}
+      </div>
+    </div>`;
+}
+
+function formatPhase() {
+  if (!gameState || !gameState.phase) return 'Unknown';
+  const p = gameState.phase;
+  if (p === 'ended') return 'Game Over';
+  if (p === 'setup') return 'Setup';
+  return p.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim();
+}
+
+function renderHand() {
+  const cards = getHandCards();
+  let inner = '';
+  if (cards.length === 0) {
+    inner = '<div class="empty-hand">No cards — produce one below!</div>';
+  } else {
+    inner = '<div class="hand-grid">';
+    for (const c of cards) {
+      const cls = 'card-' + c.name.toLowerCase();
+      const price = getPrice(c.name);
+      inner += `
+        <div class="card-item ${cls}">
+          <div class="card-rank">${CARD_SYMBOLS[c.name]}</div>
+          <div class="card-name">${esc(c.name)}</div>
+          ${c.count > 1 ? `<div class="card-count">×${c.count}</div>` : ''}
+          <div class="card-price">${price} pt${price !== 1 ? 's' : ''}</div>
+        </div>`;
+    }
+    inner += '</div>';
+  }
+  return `
+    <div class="section">
+      <div class="section-title"><span class="icon">🃏</span> Your Hand (${totalHandCards()} card${totalHandCards() !== 1 ? 's' : ''})</div>
+      ${inner}
+    </div>`;
+}
+
+function renderActions() {
+  return `
+    <div class="section">
+      <div class="section-title"><span class="icon">⚡</span> Actions</div>
+      ${renderSellAction()}
+      ${renderProduceAction()}
+    </div>`;
+}
+
+function renderSellAction() {
+  const cards = getHandCards();
+
+  if (pendingSell) {
+    const pts = pendingSell.points || getPrice(pendingSell.card);
+    return `
+      <div class="sub-section">
+        <div class="sub-label">Sell</div>
+        <div class="pending-status">
+          📦 Bring your <strong>${esc(pendingSell.card)}</strong> to the facilitator<br>
+          <span style="font-size:11px;color:var(--text-dim)">Worth ${pts} point${pts !== 1 ? 's' : ''}</span>
+        </div>
+      </div>`;
+  }
+
+  if (cards.length === 0) {
+    return `
+      <div class="sub-section">
+        <div class="sub-label">Sell</div>
+        <p style="font-size:13px;color:var(--text-dim)">No cards to sell</p>
+      </div>`;
+  }
+
+  let opts = '';
+  for (const c of cards) {
+    const price = getPrice(c.name);
+    opts += `<option value="${esc(c.name)}">${c.name} (${price} pt${price !== 1 ? 's' : ''}) ×${c.count}</option>`;
+  }
+
+  return `
+    <div class="sub-section">
+      <div class="sub-label">Sell a Card</div>
+      <div class="action-row">
+        <select id="sell-card">${opts}</select>
+        <button class="btn btn-primary btn-sm" id="sell-btn">Sell</button>
+      </div>
+    </div>`;
+}
+
+function renderProduceAction() {
+  if (pendingProduce) {
+    const bonus = pendingProduce.bonus ? ` (+${pendingProduce.bonus} bonus!)` : '';
+    return `
+      <div class="sub-section">
+        <div class="sub-label">Produce</div>
+        <div class="pending-status">
+          🏭 Pick up your <strong>${esc(pendingProduce.card)}</strong> from the facilitator${bonus}
+        </div>
+      </div>`;
+  }
+
+  const production = teamData.production || [];
+  if (production.length === 0) {
+    return `
+      <div class="sub-section">
+        <div class="sub-label">Produce</div>
+        <p style="font-size:13px;color:var(--text-dim)">No production options available</p>
+      </div>`;
+  }
+
+  let btns = '';
+  for (const card of production) {
+    const isDomestic = gameState.domesticInterests && card === teamData.domesticGood;
+    const bonusAmt = gameState.domesticBonus || 2;
+    btns += `
+      <div class="produce-btn" data-card="${esc(card)}">
+        <div class="prod-card">${CARD_SYMBOLS[card] || card}</div>
+        <div class="prod-label">Produce ${esc(card)}</div>
+        ${isDomestic ? `<div class="bonus-badge">+${bonusAmt} bonus</div>` : ''}
+      </div>`;
+  }
+
+  return `
+    <div class="sub-section">
+      <div class="sub-label">Produce a Card</div>
+      <div class="produce-grid">${btns}</div>
+    </div>`;
+}
+
+function renderTrade() {
+  const incoming = proposals.filter(p => p.toTeam === teamData.id && p.status === 'pending');
+  const outgoing = proposals.filter(p => p.fromTeam === teamData.id);
+  const acceptedExchanges = proposals.filter(p =>
+    (p.fromTeam === teamData.id || p.toTeam === teamData.id) &&
+    p.status === 'accepted'
+  );
+
+  let html = `
+    <div class="section">
+      <div class="section-title"><span class="icon">🤝</span> Trade</div>
+      <button class="btn btn-success" id="open-trade-modal" ${totalHandCards() === 0 ? 'disabled' : ''}>
+        Propose a Trade
+      </button>`;
+
+  // Exchange instructions
+  for (const p of acceptedExchanges) {
+    const other = p.fromTeam === teamData.id ? p.toTeam : p.fromTeam;
+    html += `<div class="exchange-msg">✅ Go exchange cards with <strong>${esc(getTeamName(other))}</strong>!</div>`;
+  }
+
+  // Incoming proposals
+  if (incoming.length > 0) {
+    html += `<div class="sub-section"><div class="sub-label">Incoming Proposals</div>`;
+    for (const p of incoming) {
+      html += `
+        <div class="proposal-card">
+          <div class="proposal-text">
+            <strong>${esc(getTeamName(p.fromTeam))}</strong> offers you a <strong>${esc(p.offerCard)}</strong> for your <strong>${esc(p.requestCard)}</strong>
+          </div>
+          <div class="proposal-actions">
+            <button class="btn btn-success btn-sm" onclick="doRespondTrade('${esc(p.id)}', true)">Accept</button>
+            <button class="btn btn-danger btn-sm" onclick="doRespondTrade('${esc(p.id)}', false)">Reject</button>
+          </div>
+        </div>`;
+    }
+    html += '</div>';
+  }
+
+  // Outgoing proposals
+  if (outgoing.length > 0) {
+    html += `<div class="sub-section"><div class="sub-label">Your Proposals</div>`;
+    for (const p of outgoing) {
+      html += `
+        <div class="proposal-card">
+          <div class="proposal-text">
+            You offer <strong>${esc(p.offerCard)}</strong> to <strong>${esc(getTeamName(p.toTeam))}</strong> for <strong>${esc(p.requestCard)}</strong>
+            <span class="proposal-status ${p.status}">${p.status}</span>
+          </div>
+          ${p.status === 'pending' ? `
+            <div class="proposal-actions">
+              <button class="btn btn-outline btn-sm" onclick="doCancelTrade('${esc(p.id)}')">Cancel</button>
+            </div>` : ''}
+        </div>`;
+    }
+    html += '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function renderTradeModal() {
+  const sanctioned = getSanctionedTeams();
+  const otherTeams = scores.filter(s => s.id !== teamData.id);
+  const handCards = getHandCards();
+
+  let teamOpts = '<option value="">Select a country...</option>';
+  for (const t of otherTeams) {
+    const isSanctioned = sanctioned.includes(t.id);
+    teamOpts += `<option value="${esc(t.id)}" ${isSanctioned ? 'disabled class="sanctioned-option"' : ''}>
+      ${esc(t.name)}${isSanctioned ? ' (SANCTIONED)' : ''}
+    </option>`;
+  }
+
+  let offerOpts = '<option value="">Select card to offer...</option>';
+  for (const c of handCards) {
+    offerOpts += `<option value="${esc(c.name)}">${c.name} (×${c.count})</option>`;
+  }
+
+  let requestOpts = '<option value="">Select card to request...</option>';
+  for (const card of CARD_TYPES) {
+    requestOpts += `<option value="${esc(card)}">${card}</option>`;
+  }
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'trade-modal';
+  overlay.innerHTML = `
+    <div class="modal-content">
+      <h3>Propose a Trade</h3>
+      <div class="form-group">
+        <label>Trade with</label>
+        <select id="trade-target">${teamOpts}</select>
+      </div>
+      <div class="form-group">
+        <label>You offer</label>
+        <select id="trade-offer">${offerOpts}</select>
+      </div>
+      <div class="form-group">
+        <label>You request</label>
+        <select id="trade-request">${requestOpts}</select>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px;">
+        <button class="btn btn-outline" id="trade-cancel">Cancel</button>
+        <button class="btn btn-primary" id="trade-submit">Propose</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeTrade();
+  });
+  document.getElementById('trade-cancel').addEventListener('click', closeTrade);
+  document.getElementById('trade-submit').addEventListener('click', () => {
+    const target = document.getElementById('trade-target').value;
+    const offer = document.getElementById('trade-offer').value;
+    const request = document.getElementById('trade-request').value;
+    if (!target || !offer || !request) {
+      showToast('Please fill in all trade fields', 'error');
+      return;
+    }
+    doProposeTrade(target, offer, request);
+  });
+}
+
+function closeTrade() {
+  tradeModalOpen = false;
+  const modal = document.getElementById('trade-modal');
+  if (modal) modal.remove();
+}
+
+function renderPricesTable() {
+  if (!teamData || !teamData.prices) return '';
+  const prices = teamData.prices;
+  const entries = CARD_TYPES.map(c => ({ name: c, price: prices[c] || 0 }));
+  const maxPrice = Math.max(...entries.map(e => e.price));
+  const minPrice = Math.min(...entries.map(e => e.price));
+
+  let rows = '';
+  for (const e of entries) {
+    let cls = '';
+    if (e.price === maxPrice) cls = 'highlight-high';
+    else if (e.price === minPrice) cls = 'highlight-low';
+    rows += `
+      <tr class="${cls}">
+        <td><span class="card-item" style="display:inline-flex;width:28px;height:36px;font-size:14px;border-width:1px;vertical-align:middle;margin-right:6px;">
+          <span class="card-rank" style="font-size:14px;">${CARD_SYMBOLS[e.name]}</span>
+        </span>${esc(e.name)}</td>
+        <td class="price-val">${e.price} pt${e.price !== 1 ? 's' : ''}</td>
+      </tr>`;
+  }
+
+  return `
+    <div class="section">
+      <div class="section-title"><span class="icon">💰</span> Selling Prices</div>
+      <table class="prices-table">
+        <thead><tr><th>Card</th><th style="text-align:right">Value</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function renderScoreboardSection() {
+  const rival = getMyRival();
+  const pariah = gameState.pariahTeam;
+  const sanctioned = getSanctionedTeams();
+  const sorted = [...scores].sort((a, b) => (b.score || 0) - (a.score || 0));
+
+  let rows = '';
+  for (const s of sorted) {
+    const isYou = teamData && s.id === teamData.id;
+    const isRival = rival && s.id === rival;
+    const isPariah = pariah && s.id === pariah;
+    const isSanctioned = sanctioned.includes(s.id);
+    rows += `
+      <div class="score-row ${isYou ? 'is-you' : ''}">
+        <div class="score-name">
+          ${esc(s.name)}${isYou ? ' (You)' : ''}
+          ${isRival ? '<span class="rival-badge">Rival</span>' : ''}
+          ${isPariah ? '<span class="pariah-badge">Pariah</span>' : ''}
+          ${isSanctioned ? '<span class="sanctioned-badge">Sanctioned</span>' : ''}
+        </div>
+        <div class="score-val">${s.score != null ? s.score : '—'}</div>
+      </div>`;
+  }
+
+  return `
+    <div class="section">
+      <button class="scoreboard-toggle" id="scoreboard-toggle">
+        <span><span class="icon">📊</span> Scoreboard</span>
+        <span class="chevron ${scoreboardOpen ? 'open' : ''}">▼</span>
+      </button>
+      <div class="scoreboard-list" style="display:${scoreboardOpen ? 'block' : 'none'}" id="scoreboard-list">
+        ${rows}
+        ${rival ? `<p style="font-size:11px;color:var(--red-light);margin-top:8px;text-align:center">⚔️ Rivalry penalty: ${gameState.rivalryPenalty || 4} pts if you lose to ${esc(getTeamName(rival))}</p>` : ''}
+        ${pariah ? `<p style="font-size:11px;color:var(--text-dim);margin-top:4px;text-align:center">⚠️ Pariah penalty: ${gameState.pariahPenalty || 4} pts if ${esc(getTeamName(pariah))} outscores you</p>` : ''}
+      </div>
+    </div>`;
+}
+
+function renderFinalScoreboard() {
+  const sorted = [...scores].sort((a, b) => (b.score || 0) - (a.score || 0));
+  let rows = '';
+  sorted.forEach((s, i) => {
+    const isYou = teamData && s.id === teamData.id;
+    const medals = ['🥇', '🥈', '🥉'];
+    rows += `
+      <div class="final-score-row ${i === 0 ? 'rank-1' : ''} ${isYou ? 'is-you' : ''}">
+        <div class="rank">${medals[i] || (i + 1)}</div>
+        <div>${esc(s.name)}${isYou ? ' (You)' : ''}</div>
+        <div class="final-score-val">${s.score != null ? s.score : '—'}</div>
+      </div>`;
+  });
+
+  return `
+    <div class="section final-scoreboard">
+      <h2>🏆 Final Results</h2>
+      ${rows}
+    </div>`;
+}
+
+// ── Events ──
+function bindEvents() {
+  const sellBtn = document.getElementById('sell-btn');
+  if (sellBtn) {
+    sellBtn.addEventListener('click', () => {
+      const sel = document.getElementById('sell-card');
+      if (sel && sel.value) doSell(sel.value);
+    });
+  }
+
+  document.querySelectorAll('.produce-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const card = btn.dataset.card;
+      if (card) doProduce(card);
+    });
+  });
+
+  const tradeBtn = document.getElementById('open-trade-modal');
+  if (tradeBtn) {
+    tradeBtn.addEventListener('click', () => {
+      tradeModalOpen = true;
+      renderTradeModal();
+    });
+  }
+
+  const sbToggle = document.getElementById('scoreboard-toggle');
+  if (sbToggle) {
+    sbToggle.addEventListener('click', () => {
+      scoreboardOpen = !scoreboardOpen;
+      const list = document.getElementById('scoreboard-list');
+      const chev = sbToggle.querySelector('.chevron');
+      if (list) list.style.display = scoreboardOpen ? 'block' : 'none';
+      if (chev) chev.classList.toggle('open', scoreboardOpen);
+      if (scoreboardOpen) fetchScoreboard();
+    });
+  }
+}
+
+// ── Utils ──
+function esc(str) {
+  if (str == null) return '';
+  const d = document.createElement('div');
+  d.textContent = String(str);
+  return d.innerHTML;
+}
+
+// ── Start ──
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
