@@ -633,6 +633,12 @@ function render() {
   const app = document.getElementById('app');
   if (!teamData || !gameState) return;
 
+  // While the trade modal is open, do NOT rebuild the page underneath it.
+  // Re-rendering #app every poll (twice per cycle during trade) disturbs
+  // the modal's native <select> dropdowns — closing them mid-selection and
+  // causing the visual stutter. The closed modal handles its own refresh.
+  if (tradeModalOpen && document.getElementById('trade-modal')) return;
+
   if (gameState.phase === 'setup') {
     app.innerHTML = renderWaiting();
     return;
@@ -652,7 +658,9 @@ function render() {
     renderScoreboardSection()
   ].join('');
 
-  if (tradeModalOpen) renderTradeModal();
+  // Only (re)build the trade modal if it isn't already on screen —
+  // otherwise the 5s poll appends duplicate modals and wipes selections.
+  if (tradeModalOpen && !document.getElementById('trade-modal')) renderTradeModal();
   bindEvents();
 }
 
