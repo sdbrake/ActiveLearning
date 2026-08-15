@@ -318,7 +318,7 @@ a{color:var(--cyan);text-decoration:none}
 </div>
 
 <script>
-const SCRIPT_URL = '';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz1mfULkgAK0Q9UO1Z_9vLppmL0DVISaNlr2wO3JzBlTvT8e6LOWO06OGNtMiRkB89g/exec';
 
 let facilKey = localStorage.getItem('facilitatorKey') || '';
 let pollTimer = null;
@@ -373,10 +373,13 @@ async function apiCall(action, params = {}) {
     const body = { action, key: facilKey, ...params };
     const resp = await fetch(SCRIPT_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(body)
     });
-    return await resp.json();
+    const text = await resp.text();
+    try { return JSON.parse(text); }
+    catch (_) { throw new Error('Non-JSON response: ' + text.substring(0, 120)); }
   } catch (e) {
     toast('API Error: ' + e.message, 'error');
     return null;
