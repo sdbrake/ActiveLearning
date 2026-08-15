@@ -958,11 +958,13 @@ function renderTeamLinks(teams, gs) {
   if (!teams.length) { body.innerHTML = '<div class="empty">No teams</div>'; return; }
 
   // Determine base URL
-  const baseUrl = window.location.href.replace(/facilitator\.html.*/, 'student.html');
+  const baseUrl = window.location.href.replace(/facilitator\.html.*/, 'index.html').replace(/#.*$/, '');
 
+  // Tokens come from dashboard response (stored in lastData.tokens), fall back to t.token
+  const tokens = (lastData && lastData.tokens) || {};
   let html = '';
   teams.forEach(t => {
-    const token = (gs.tokens && gs.tokens[t.id]) || t.token || '???';
+    const token = tokens[t.id] || t.token || '???';
     const url = baseUrl + '?token=' + encodeURIComponent(token);
     const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent(url);
 
