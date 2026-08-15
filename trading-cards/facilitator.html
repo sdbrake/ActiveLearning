@@ -318,8 +318,7 @@ a{color:var(--cyan);text-decoration:none}
 </div>
 
 <script>
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz1mfULkgAK0Q9UO1Z_9vLppmL0DVISaNlr2wO3JzBlTvT8e6LOWO06OGNtMiRkB89g/exec
-';
+const SCRIPT_URL = '';
 
 let facilKey = localStorage.getItem('facilitatorKey') || '';
 let pollTimer = null;
@@ -374,7 +373,7 @@ async function apiCall(action, params = {}) {
     const body = { action, key: facilKey, ...params };
     const resp = await fetch(SCRIPT_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify(body)
     });
     return await resp.json();
