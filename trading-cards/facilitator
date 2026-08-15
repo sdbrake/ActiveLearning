@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading Cards — Facilitator Dashboard</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e14;--bg2:#111820;--bg3:#1a2230;--bg4:#243040;
+  --green:#00e676;--green2:#00c853;--amber:#ffc107;--red:#ff5252;
+  --cyan:#00e5ff;--white:#e8eaed;--muted:#8899aa;
+  --card-bg:#141c28;--border:#1e2d40;
+  --font:'Segoe UI',system-ui,-apple-system,sans-serif;
+  --mono:'Cascadia Code','Fira Code','Consolas',monospace;
+}
+html{font-size:14px}
+body{font-family:var(--font);background:var(--bg);color:var(--white);min-height:100vh;overflow-x:hidden}
+a{color:var(--cyan);text-decoration:none}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#3a5060}
+
+/* ─── AUTH GATE ─── */
+#authGate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:1.5rem}
+#authGate h1{font-size:2rem;color:var(--green);letter-spacing:.15em;text-transform:uppercase}
+#authGate .subtitle{color:var(--muted);font-size:.9rem;margin-top:-.5rem}
+#authGate input{background:var(--bg3);border:1px solid var(--border);color:var(--white);padding:.75rem 1.25rem;border-radius:6px;font-size:1rem;width:300px;text-align:center;outline:none}
+#authGate input:focus{border-color:var(--green)}
+#authGate button{background:var(--green);color:#000;border:none;padding:.65rem 2rem;border-radius:6px;font-weight:700;cursor:pointer;font-size:1rem}
+#authGate button:hover{background:var(--green2)}
+#authGate .error{color:var(--red);font-size:.85rem;min-height:1.2em}
+
+/* ─── TOAST ─── */
+#toastContainer{position:fixed;top:1rem;right:1rem;z-index:10000;display:flex;flex-direction:column;gap:.5rem;pointer-events:none}
+.toast{padding:.75rem 1.25rem;border-radius:6px;font-size:.85rem;pointer-events:auto;animation:slideIn .3s ease;max-width:400px;box-shadow:0 4px 20px rgba(0,0,0,.5)}
+.toast.success{background:#1b3a2a;border:1px solid var(--green);color:var(--green)}
+.toast.error{background:#3a1a1a;border:1px solid var(--red);color:var(--red)}
+.toast.info{background:#1a2a3a;border:1px solid var(--cyan);color:var(--cyan)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ─── CONFIRM MODAL ─── */
+#confirmOverlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:8000;display:none;align-items:center;justify-content:center}
+#confirmOverlay.active{display:flex}
+#confirmBox{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:2rem;max-width:420px;width:90%;text-align:center}
+#confirmBox h3{color:var(--amber);margin-bottom:1rem}
+#confirmBox p{color:var(--muted);margin-bottom:1.5rem;font-size:.95rem}
+#confirmBox .btn-row{display:flex;gap:1rem;justify-content:center}
+#confirmBox button{padding:.6rem 1.5rem;border-radius:6px;border:none;font-weight:700;cursor:pointer;font-size:.9rem}
+#confirmBox .btn-cancel{background:var(--bg4);color:var(--white)}
+#confirmBox .btn-ok{background:var(--red);color:#fff}
+
+/* ─── SANCTIONS MODAL ─── */
+#sanctionsOverlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:7000;display:none;align-items:center;justify-content:center}
+#sanctionsOverlay.active{display:flex}
+#sanctionsBox{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:2rem;max-width:550px;width:95%}
+#sanctionsBox h3{color:var(--amber);margin-bottom:1rem;text-align:center}
+.sanctions-grid{display:grid;grid-template-columns:120px repeat(5,1fr);gap:2px;margin-bottom:1.5rem}
+.sanctions-grid .header{background:var(--bg4);padding:.5rem;text-align:center;font-size:.75rem;font-weight:700;color:var(--cyan)}
+.sanctions-grid .row-label{background:var(--bg3);padding:.5rem;font-size:.75rem;display:flex;align-items:center;color:var(--amber)}
+.sanctions-grid .cell{background:var(--bg3);display:flex;align-items:center;justify-content:center;padding:.4rem}
+.sanctions-grid .cell.diagonal{background:var(--bg);opacity:.3}
+.sanctions-grid .cell input[type=checkbox]{width:18px;height:18px;accent-color:var(--red);cursor:pointer}
+#sanctionsBox .btn-row{display:flex;gap:1rem;justify-content:center}
+#sanctionsBox button{padding:.6rem 1.5rem;border-radius:6px;border:none;font-weight:700;cursor:pointer;font-size:.9rem}
+#sanctionsBox .btn-save{background:var(--green);color:#000}
+#sanctionsBox .btn-cancel{background:var(--bg4);color:var(--white)}
+
+/* ─── MAIN LAYOUT ─── */
+#app{display:none}
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:.75rem 1.5rem;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;position:sticky;top:0;z-index:100}
+.topbar .logo{font-size:1.3rem;font-weight:800;color:var(--green);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+.topbar .round-badge{background:var(--bg4);padding:.4rem 1rem;border-radius:20px;font-weight:700;font-size:1.1rem;color:var(--amber)}
+.topbar .phase-badge{background:#1a2a1a;border:1px solid var(--green);padding:.35rem .9rem;border-radius:20px;font-size:.85rem;color:var(--green)}
+.topbar .spacer{flex:1}
+.topbar .actions{display:flex;gap:.5rem;flex-wrap:wrap}
+
+/* Buttons */
+.btn{padding:.5rem 1rem;border-radius:6px;border:none;font-weight:600;cursor:pointer;font-size:.82rem;transition:all .15s}
+.btn-primary{background:var(--green);color:#000}.btn-primary:hover{background:var(--green2)}
+.btn-danger{background:var(--red);color:#fff}.btn-danger:hover{filter:brightness(1.2)}
+.btn-amber{background:var(--amber);color:#000}.btn-amber:hover{filter:brightness(1.1)}
+.btn-ghost{background:var(--bg3);color:var(--white);border:1px solid var(--border)}.btn-ghost:hover{background:var(--bg4)}
+.btn-sm{padding:.35rem .7rem;font-size:.75rem}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* Phase Stepper */
+.phase-stepper{display:flex;align-items:center;gap:0;padding:.75rem 1.5rem;background:var(--bg2);border-bottom:1px solid var(--border);overflow-x:auto}
+.phase-step{display:flex;align-items:center;gap:.5rem;padding:.4rem .8rem;border-radius:20px;font-size:.78rem;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;transition:all .2s;border:1px solid transparent}
+.phase-step:hover{color:var(--white);background:var(--bg3)}
+.phase-step.active{background:#1a2a1a;border-color:var(--green);color:var(--green)}
+.phase-step.completed{color:var(--green2)}
+.phase-arrow{color:var(--bg4);font-size:.8rem;margin:0 .2rem}
+
+/* Main content grid */
+.main-grid{display:grid;grid-template-columns:1fr 380px;gap:1rem;padding:1rem 1.5rem;max-width:1800px;margin:0 auto}
+@media(max-width:1100px){.main-grid{grid-template-columns:1fr}}
+
+/* Sections */
+.section{background:var(--card-bg);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.section-header{padding:.75rem 1rem;background:var(--bg3);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.section-header h2{font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:var(--cyan)}
+.section-header .badge{background:var(--red);color:#fff;font-size:.7rem;padding:.15rem .5rem;border-radius:10px;font-weight:700;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.section-body{padding:1rem;max-height:600px;overflow-y:auto}
+
+/* Team Cards */
+.teams-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem}
+.team-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;position:relative}
+.team-card.rank-1{border-color:gold}.team-card.rank-2{border-color:silver}.team-card.rank-3{border-color:#cd7f32}
+.team-card .team-name{font-weight:700;font-size:1rem;margin-bottom:.5rem;display:flex;align-items:center;gap:.5rem}
+.team-card .team-name .country{color:var(--cyan)}
+.team-card .score{font-size:1.8rem;font-weight:800;margin:.25rem 0;font-family:var(--mono)}
+.score.rank-1{color:gold}.score.rank-2{color:silver}.score.rank-3{color:#cd7f32}.score.rank-other{color:var(--muted)}
+.team-card .meta{font-size:.75rem;color:var(--muted);margin:.25rem 0}
+.team-card .tags{display:flex;gap:.35rem;flex-wrap:wrap;margin:.5rem 0}
+.tag{padding:.15rem .5rem;border-radius:10px;font-size:.7rem;font-weight:600}
+.tag-rival{background:#3a2a1a;color:var(--amber);border:1px solid var(--amber)}
+.tag-pariah{background:#3a1a1a;color:var(--red);border:1px solid var(--red)}
+.tag-prod{background:#1a2a3a;color:var(--cyan);border:1px solid rgba(0,229,255,.3)}
+
+/* Hand display */
+.hand-display{display:flex;flex-wrap:wrap;gap:4px;margin:.5rem 0}
+.mini-card{padding:.2rem .5rem;border-radius:4px;font-size:.7rem;font-weight:700;background:var(--bg4);color:var(--white);border:1px solid var(--border)}
+.mini-card.ace{background:#1a1a3a;border-color:#7c4dff;color:#b388ff}
+.mini-card.king{background:#3a2a1a;border-color:#ff6d00;color:#ffab40}
+.mini-card.queen{background:#1a3a2a;border-color:#00c853;color:#69f0ae}
+.mini-card.jack{background:#3a1a2a;border-color:#ff1744;color:#ff8a80}
+.mini-card.ten{background:#1a2a3a;border-color:#0091ea;color:#80d8ff}
+
+/* Adjust buttons */
+.adjust-row{display:flex;gap:.3rem;align-items:center;margin-top:.5rem;flex-wrap:wrap}
+.adjust-row label{font-size:.7rem;color:var(--muted);margin-right:.25rem}
+
+/* Pending actions */
+.pending-item{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:.75rem 1rem;margin-bottom:.5rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap}
+.pending-item .info{flex:1;min-width:200px}
+.pending-item .info .label{font-size:.85rem;font-weight:600}
+.pending-item .info .detail{font-size:.75rem;color:var(--muted)}
+.pending-item .actions{display:flex;gap:.35rem}
+.pending-item.trade-pending{border-color:var(--amber);border-style:dashed}
+.pending-item.trade-ready{border-color:var(--green)}
+
+/* Log table */
+.log-table{width:100%;border-collapse:collapse;font-size:.78rem}
+.log-table th{text-align:left;padding:.4rem .5rem;background:var(--bg3);color:var(--cyan);font-weight:600;position:sticky;top:0}
+.log-table td{padding:.35rem .5rem;border-bottom:1px solid var(--border);color:var(--muted)}
+.log-table tr:hover td{background:var(--bg3)}
+
+/* Team Links */
+.team-link-item{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:.75rem;margin-bottom:.5rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+.team-link-item .qr{flex-shrink:0}
+.team-link-item .qr img{border-radius:4px;background:#fff;padding:2px}
+.team-link-item .link-info{flex:1;min-width:150px}
+.team-link-item .link-info .name{font-weight:700;color:var(--cyan);font-size:.85rem}
+.team-link-item .link-info .url{font-size:.7rem;color:var(--muted);word-break:break-all;font-family:var(--mono)}
+.team-link-item .copy-btn{cursor:pointer;background:var(--bg3);border:1px solid var(--border);color:var(--white);padding:.3rem .6rem;border-radius:4px;font-size:.7rem}
+.team-link-item .copy-btn:hover{background:var(--bg4)}
+
+/* History */
+.history-round{margin-bottom:.5rem}
+.history-round summary{cursor:pointer;font-weight:700;color:var(--amber);font-size:.85rem;padding:.4rem 0}
+.history-round .summary-text{font-size:.78rem;color:var(--muted);padding:.25rem 0 .25rem 1rem}
+
+/* Final Scoreboard overlay */
+#finalScoreboard{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:6000;display:none;align-items:center;justify-content:center}
+#finalScoreboard.active{display:flex}
+.scoreboard-box{background:var(--bg2);border:2px solid gold;border-radius:16px;padding:2.5rem;text-align:center;max-width:500px;width:90%}
+.scoreboard-box h2{color:gold;font-size:1.5rem;margin-bottom:1.5rem;letter-spacing:.1em}
+.scoreboard-entry{display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;margin-bottom:.4rem;border-radius:6px;font-weight:700}
+.scoreboard-entry.gold{background:rgba(255,215,0,.15);color:gold;font-size:1.1rem}
+.scoreboard-entry.silver{background:rgba(192,192,192,.1);color:silver}
+.scoreboard-entry.bronze{background:rgba(205,127,50,.1);color:#cd7f32}
+.scoreboard-entry.other{background:var(--bg3);color:var(--muted)}
+.scoreboard-entry .pos{width:2rem}
+.scoreboard-entry .name{flex:1;text-align:left}
+.scoreboard-box .close-btn{margin-top:1.5rem}
+
+/* Right sidebar stacking */
+.sidebar{display:flex;flex-direction:column;gap:1rem}
+
+/* Collapsible */
+.collapsible .section-header{cursor:pointer;user-select:none}
+.collapsible .section-header::after{content:'▼';font-size:.7rem;color:var(--muted);transition:transform .2s}
+.collapsible.collapsed .section-header::after{transform:rotate(-90deg)}
+.collapsible.collapsed .section-body{display:none}
+
+/* No items */
+.empty{text-align:center;color:var(--muted);padding:1.5rem;font-size:.85rem}
+</style>
+</head>
+<body>
+
+<!-- Auth Gate -->
+<div id="authGate">
+  <h1>🃏 Trading Cards</h1>
+  <div class="subtitle">Facilitator Command Center</div>
+  <input type="password" id="keyInput" placeholder="Enter Facilitator Key" autofocus>
+  <button onclick="tryAuth()">Authenticate</button>
+  <div class="error" id="authError"></div>
+</div>
+
+<!-- Toast Container -->
+<div id="toastContainer"></div>
+
+<!-- Confirm Modal -->
+<div id="confirmOverlay">
+  <div id="confirmBox">
+    <h3 id="confirmTitle">Confirm Action</h3>
+    <p id="confirmMsg"></p>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeConfirm()">Cancel</button>
+      <button class="btn-ok" id="confirmOk" onclick="doConfirm()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sanctions Modal -->
+<div id="sanctionsOverlay">
+  <div id="sanctionsBox">
+    <h3>⚖️ Manage Sanctions</h3>
+    <p style="text-align:center;color:var(--muted);font-size:.8rem;margin-bottom:1rem">Check boxes to block trading between teams (symmetric)</p>
+    <div class="sanctions-grid" id="sanctionsGrid"></div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeSanctions()">Cancel</button>
+      <button class="btn-save" onclick="saveSanctions()">Save Sanctions</button>
+    </div>
+  </div>
+</div>
+
+<!-- Final Scoreboard -->
+<div id="finalScoreboard">
+  <div class="scoreboard-box">
+    <h2>🏆 FINAL STANDINGS</h2>
+    <div id="scoreboardEntries"></div>
+    <button class="btn btn-ghost close-btn" onclick="document.getElementById('finalScoreboard').classList.remove('active')">Close</button>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="app">
+  <!-- Top Bar -->
+  <div class="topbar">
+    <div class="logo">🃏 Trading Cards</div>
+    <div class="round-badge" id="roundBadge">Round —</div>
+    <div class="phase-badge" id="phaseBadge">Loading…</div>
+    <div class="spacer"></div>
+    <div class="actions">
+      <button class="btn btn-amber" onclick="confirmAction('Advance Round','Move to the next round? End-of-round penalties will be applied.',advanceRound)">⏭ Advance Round</button>
+      <button class="btn btn-danger" onclick="confirmAction('End Game','End the game and show final scoreboard?',endGame)">🏁 End Game</button>
+    </div>
+  </div>
+
+  <!-- Phase Stepper -->
+  <div class="phase-stepper" id="phaseStepper"></div>
+
+  <!-- Main Grid -->
+  <div class="main-grid">
+    <!-- Left Column -->
+    <div>
+      <!-- Teams -->
+      <div class="section" style="margin-bottom:1rem">
+        <div class="section-header"><h2>📊 Team Overview</h2></div>
+        <div class="section-body" style="max-height:none"><div class="teams-grid" id="teamsGrid"></div></div>
+      </div>
+
+      <!-- Pending Actions -->
+      <div class="section" style="margin-bottom:1rem" id="pendingSection">
+        <div class="section-header">
+          <h2>⚡ Pending Actions</h2>
+          <span class="badge" id="pendingBadge" style="display:none">0</span>
+        </div>
+        <div class="section-body" id="pendingBody">
+          <div class="empty">No pending actions</div>
+        </div>
+      </div>
+
+      <!-- Action Log -->
+      <div class="section collapsible" style="margin-bottom:1rem">
+        <div class="section-header" onclick="this.parentElement.classList.toggle('collapsed')"><h2>📋 Action Log</h2></div>
+        <div class="section-body" style="max-height:400px">
+          <table class="log-table">
+            <thead><tr><th>Time</th><th>Rnd</th><th>Team</th><th>Action</th><th>Details</th><th>Pts</th></tr></thead>
+            <tbody id="logBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Sidebar -->
+    <div class="sidebar">
+      <!-- Phase Controls -->
+      <div class="section">
+        <div class="section-header"><h2>🎛 Phase Controls</h2></div>
+        <div class="section-body" id="phaseControls"></div>
+      </div>
+
+      <!-- Team Links -->
+      <div class="section collapsible collapsed">
+        <div class="section-header" onclick="this.parentElement.classList.toggle('collapsed')"><h2>🔗 Team Links</h2></div>
+        <div class="section-body" id="teamLinksBody">
+          <div class="empty">Awaiting game data…</div>
+        </div>
+      </div>
+
+      <!-- Turn History -->
+      <div class="section collapsible collapsed">
+        <div class="section-header" onclick="this.parentElement.classList.toggle('collapsed')"><h2>📜 Turn History</h2></div>
+        <div class="section-body" id="historyBody">
+          <div class="empty">No history yet</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SCRIPT_URL = '';
+
+let facilKey = localStorage.getItem('facilitatorKey') || '';
+let pollTimer = null;
+let confirmCallback = null;
+let lastData = null;
+
+const TEAM_NAMES = {1:'Country 1',2:'Country 2',3:'Country 3',4:'Country 4',5:'Country 5'};
+const CARD_TYPES = ['Ace','King','Queen','Jack','Ten'];
+const CARD_CLASS = {Ace:'ace',King:'king',Queen:'queen',Jack:'jack',Ten:'ten'};
+
+const PHASES = [
+  {id:'setup', label:'Setup', icon:'🔧'},
+  {id:'autarky', label:'Autarky', icon:'🏠'},
+  {id:'trade', label:'Trade Open', icon:'🤝'},
+  {id:'domestic', label:'Domestic Interests', icon:'🏭'},
+  {id:'rivalries', label:'Rivalries', icon:'⚔️'},
+  {id:'pariah', label:'Pariah State', icon:'🚫'},
+  {id:'ended', label:'End', icon:'🏁'}
+];
+
+// ─── AUTH ───
+function tryAuth() {
+  const k = document.getElementById('keyInput').value.trim();
+  if (!k) { document.getElementById('authError').textContent = 'Please enter a key'; return; }
+  facilKey = k;
+  localStorage.setItem('facilitatorKey', k);
+  apiCall('dashboard', {}).then(d => {
+    if (d && d.success) {
+      document.getElementById('authGate').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      startPolling();
+      renderDashboard(d);
+    } else {
+      document.getElementById('authError').textContent = (d && d.error) || 'Invalid key or server error';
+      localStorage.removeItem('facilitatorKey');
+    }
+  }).catch(() => {
+    document.getElementById('authError').textContent = 'Connection failed. Check SCRIPT_URL.';
+  });
+}
+
+// Auto-auth on load
+if (facilKey) {
+  tryAuth();
+} else {
+  document.getElementById('keyInput').addEventListener('keydown', e => { if (e.key === 'Enter') tryAuth(); });
+}
+
+// ─── API ───
+async function apiCall(action, params = {}) {
+  try {
+    const body = { action, key: facilKey, ...params };
+    const resp = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    return await resp.json();
+  } catch (e) {
+    toast('API Error: ' + e.message, 'error');
+    return null;
+  }
+}
+
+// ─── POLLING ───
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  fetchDashboard();
+  pollTimer = setInterval(fetchDashboard, 3000);
+}
+
+async function fetchDashboard() {
+  const d = await apiCall('dashboard');
+  if (d && d.success) {
+    lastData = d;
+    renderDashboard(d);
+  }
+}
+
+// ─── TOAST ───
+function toast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(() => el.remove(), type === 'error' ? 8000 : 3000);
+}
+
+// ─── CONFIRM ───
+function confirmAction(title, msg, callback) {
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMsg').textContent = msg;
+  confirmCallback = callback;
+  document.getElementById('confirmOverlay').classList.add('active');
+}
+function closeConfirm() {
+  document.getElementById('confirmOverlay').classList.remove('active');
+  confirmCallback = null;
+}
+function doConfirm() {
+  const cb = confirmCallback;
+  closeConfirm();
+  if (cb) cb();
+}
+
+// ─── SANCTIONS MODAL ───
+function openSanctions() {
+  const gs = lastData ? lastData.gameState : {};
+  const sanctions = gs.sanctions || {};
+  const grid = document.getElementById('sanctionsGrid');
+  grid.innerHTML = '';
+  // header row
+  grid.innerHTML += '<div class="header"></div>';
+  for (let i = 1; i <= 5; i++) grid.innerHTML += `<div class="header">${teamName(i)}</div>`;
+  for (let r = 1; r <= 5; r++) {
+    grid.innerHTML += `<div class="row-label">${teamName(r)}</div>`;
+    for (let c = 1; c <= 5; c++) {
+      if (r === c) {
+        grid.innerHTML += '<div class="cell diagonal"></div>';
+      } else {
+        const checked = (sanctions[String(r)] && sanctions[String(r)].includes(String(c))) ? 'checked' : '';
+        grid.innerHTML += `<div class="cell"><input type="checkbox" data-r="${r}" data-c="${c}" ${checked}></div>`;
+      }
+    }
+  }
+  document.getElementById('sanctionsOverlay').classList.add('active');
+}
+function closeSanctions() {
+  document.getElementById('sanctionsOverlay').classList.remove('active');
+}
+async function saveSanctions() {
+  const checks = document.querySelectorAll('#sanctionsGrid input[type=checkbox]');
+  const sanctions = {};
+  checks.forEach(ch => {
+    if (ch.checked) {
+      const r = ch.dataset.r, c = ch.dataset.c;
+      if (!sanctions[r]) sanctions[r] = [];
+      if (!sanctions[r].includes(c)) sanctions[r].push(c);
+      // symmetric
+      if (!sanctions[c]) sanctions[c] = [];
+      if (!sanctions[c].includes(r)) sanctions[c].push(r);
+    }
+  });
+  const d = await apiCall('setsanctions', { sanctions: JSON.stringify(sanctions) });
+  if (d && d.success) {
+    toast('Sanctions updated');
+    closeSanctions();
+    fetchDashboard();
+  } else {
+    toast((d && d.error) || 'Failed to set sanctions', 'error');
+  }
+}
+
+// ─── RENDER DASHBOARD ───
+function renderDashboard(d) {
+  const gs = d.gameState || {};
+  // Top bar
+  document.getElementById('roundBadge').textContent = 'Round ' + (gs.round || '—');
+  document.getElementById('phaseBadge').textContent = (gs.phase || 'unknown').toUpperCase();
+
+  renderPhaseStepper(gs);
+  renderTeams(d.teams || [], gs);
+  renderPending(d.pendingSells || [], d.pendingProductions || [], d.tradeProposals || []);
+  renderPhaseControls(gs);
+  renderLog(d.log || []);
+  renderHistory(d.history || []);
+  renderTeamLinks(d.teams || [], gs);
+
+  // Check if game ended
+  if (gs.phase === 'ended' && d.teams) {
+    showFinalScoreboard(d.teams);
+  }
+}
+
+// ─── PHASE STEPPER ───
+function renderPhaseStepper(gs) {
+  const el = document.getElementById('phaseStepper');
+  const phase = gs.phase || '';
+  const phaseMap = {
+    'setup': 0, 'autarky': 1, 'trade': 2, 'domestic': 3, 'rivalries': 4, 'pariah': 5, 'ended': 6
+  };
+  const currentIdx = phaseMap[phase] ?? -1;
+
+  let html = '';
+  PHASES.forEach((p, i) => {
+    if (i > 0) html += '<span class="phase-arrow">→</span>';
+    const cls = i === currentIdx ? 'active' : (i < currentIdx ? 'completed' : '');
+    html += `<div class="phase-step ${cls}" onclick="jumpToPhase('${p.id}')">${p.icon} ${p.label}</div>`;
+  });
+  el.innerHTML = html;
+}
+
+function jumpToPhase(phaseId) {
+  const phaseConfig = {
+    'setup': () => confirmAction('Run Setup', 'Initialize/reset game setup? This regenerates tokens.', setupGame),
+    'autarky': () => setPhase({ phase: 'autarky', tradeOpen: false, domesticInterests: false }),
+    'trade': () => setPhase({ phase: 'trade', tradeOpen: true, domesticInterests: false }),
+    'domestic': () => setPhase({ phase: 'domestic', tradeOpen: true, domesticInterests: true }),
+    'rivalries': () => setPhaseWithConfirm('Activate Rivalries', 'Activate rivalry penalties?', { phase: 'rivalries', tradeOpen: true, domesticInterests: true }),
+    'pariah': () => setPhaseWithConfirm('Declare Pariah State', 'Activate pariah state penalties?', { phase: 'pariah', tradeOpen: true, domesticInterests: true }),
+    'ended': () => confirmAction('End Game', 'End the game?', endGame)
+  };
+  if (phaseConfig[phaseId]) phaseConfig[phaseId]();
+}
+
+function setPhaseWithConfirm(title, msg, params) {
+  confirmAction(title, msg, () => setPhase(params));
+}
+
+async function setPhase(params) {
+  const d = await apiCall('setphase', params);
+  if (d && d.success) { toast('Phase updated'); fetchDashboard(); }
+  else toast((d && d.error) || 'Failed', 'error');
+}
+
+// ─── TEAMS ───
+function teamName(id) {
+  if (lastData && lastData.teams) {
+    const t = lastData.teams.find(t => String(t.id) === String(id));
+    if (t && t.name) return t.name;
+  }
+  return TEAM_NAMES[id] || ('Team ' + id);
+}
+
+function renderTeams(teams, gs) {
+  const grid = document.getElementById('teamsGrid');
+  if (!teams.length) { grid.innerHTML = '<div class="empty">No teams loaded</div>'; return; }
+
+  // Rank teams by score
+  const sorted = [...teams].sort((a, b) => (b.score || 0) - (a.score || 0));
+  const ranks = {};
+  sorted.forEach((t, i) => { ranks[t.id] = i + 1; });
+
+  let html = '';
+  teams.forEach(t => {
+    const rank = ranks[t.id];
+    const rankClass = rank <= 3 ? 'rank-' + rank : 'rank-other';
+    const isPariah = gs.pariahTeam && String(gs.pariahTeam) === String(t.id);
+    const isRival = gs.rivalries && (String(t.id) === '1' || String(t.id) === '2' || String(t.id) === '3' || String(t.id) === '4');
+
+    html += `<div class="team-card ${rank <= 3 ? rankClass : ''}">`;
+    html += `<div class="team-name"><span class="country">${escHtml(t.name || 'Team '+t.id)}</span>`;
+    html += `<span style="color:var(--muted);font-size:.75rem">#${t.id}</span></div>`;
+    html += `<div class="score ${rankClass}">${t.score || 0}</div>`;
+
+    // Tags
+    html += '<div class="tags">';
+    if (isPariah) html += '<span class="tag tag-pariah">🚫 PARIAH</span>';
+    if (isRival && gs.rivalries) {
+      const rivalOf = (String(t.id) === '1' || String(t.id) === '2') ? 
+        (String(t.id) === '1' ? '2' : '1') : 
+        (String(t.id) === '3' ? '4' : '3');
+      html += `<span class="tag tag-rival">⚔️ Rival of ${teamName(rivalOf)}</span>`;
+    }
+    if (t.production && t.production.length) {
+      t.production.forEach(p => { html += `<span class="tag tag-prod">🏭 ${p}</span>`; });
+    }
+    if (t.domesticGood) {
+      html += `<span class="tag tag-prod" style="background:#2a2a1a;color:var(--amber)">🏠 Domestic: ${t.domesticGood}</span>`;
+    }
+    html += '</div>';
+
+    // Hand
+    html += '<div class="hand-display">';
+    if (t.hand) {
+      CARD_TYPES.forEach(card => {
+        const count = t.hand[card] || 0;
+        for (let i = 0; i < count; i++) {
+          html += `<span class="mini-card ${CARD_CLASS[card]}">${card}</span>`;
+        }
+      });
+    }
+    html += '</div>';
+
+    // Prices
+    if (t.prices) {
+      html += '<div class="meta">Prices: ';
+      html += Object.entries(t.prices).map(([c,p]) => `${c}=${p}`).join(', ');
+      html += '</div>';
+    }
+
+    // Adjust buttons
+    html += '<div class="adjust-row">';
+    html += `<label>Score:</label>`;
+    html += `<button class="btn btn-sm btn-ghost" onclick="adjustScore('${t.id}',-1)">−1</button>`;
+    html += `<button class="btn btn-sm btn-ghost" onclick="adjustScore('${t.id}',1)">+1</button>`;
+    html += `<button class="btn btn-sm btn-ghost" onclick="adjustScore('${t.id}',5)">+5</button>`;
+    html += `<button class="btn btn-sm btn-ghost" onclick="promptAdjustScore('${t.id}')">±N</button>`;
+    html += '</div>';
+    html += '<div class="adjust-row">';
+    html += `<label>Cards:</label>`;
+    CARD_TYPES.forEach(c => {
+      html += `<button class="btn btn-sm btn-ghost" onclick="adjustHand('${t.id}','${c}',1)" title="Add ${c}">+${c[0]}</button>`;
+      html += `<button class="btn btn-sm btn-ghost" onclick="adjustHand('${t.id}','${c}',-1)" title="Remove ${c}">−${c[0]}</button>`;
+    });
+    html += '</div>';
+
+    html += '</div>';
+  });
+  grid.innerHTML = html;
+}
+
+async function adjustScore(teamId, amount) {
+  if (amount === undefined) return;
+  const reason = Math.abs(amount) > 1 ? prompt('Reason for adjustment?', 'Manual adjustment') : 'Manual adjustment';
+  if (reason === null) return;
+  const d = await apiCall('adjustscore', { teamId: String(teamId), amount, reason });
+  if (d && d.success) { toast(`Score adjusted: ${amount > 0 ? '+' : ''}${amount}`); fetchDashboard(); }
+  else toast((d && d.error) || 'Failed', 'error');
+}
+
+function promptAdjustScore(teamId) {
+  const val = prompt('Enter score adjustment (positive or negative number):');
+  if (val === null) return;
+  const n = parseInt(val);
+  if (isNaN(n)) { toast('Invalid number', 'error'); return; }
+  adjustScore(teamId, n);
+}
+
+async function adjustHand(teamId, card, delta) {
+  const d = await apiCall('adjusthand', { teamId: String(teamId), card, delta });
+  if (d && d.success) { toast(`${delta > 0 ? 'Added' : 'Removed'} ${card}`); fetchDashboard(); }
+  else toast((d && d.error) || 'Failed', 'error');
+}
+
+// ─── PENDING ACTIONS ───
+function renderPending(sells, productions, proposals) {
+  const body = document.getElementById('pendingBody');
+  const badge = document.getElementById('pendingBadge');
+
+  const readyTrades = proposals.filter(p => p.status === 'accepted');
+  const pendingTrades = proposals.filter(p => p.status !== 'accepted' && p.status !== 'rejected' && p.status !== 'confirmed');
+  const totalPending = sells.length + productions.length + readyTrades.length;
+
+  if (totalPending > 0) {
+    badge.style.display = 'inline';
+    badge.textContent = totalPending;
+    document.getElementById('pendingSection').style.borderColor = 'var(--amber)';
+    document.getElementById('pendingSection').style.boxShadow = '0 0 20px rgba(255,193,7,.15)';
+  } else {
+    badge.style.display = 'none';
+    document.getElementById('pendingSection').style.borderColor = '';
+    document.getElementById('pendingSection').style.boxShadow = '';
+  }
+
+  if (!sells.length && !productions.length && !readyTrades.length && !pendingTrades.length) {
+    body.innerHTML = '<div class="empty">No pending actions — all clear ✓</div>';
+    return;
+  }
+
+  let html = '';
+
+  // Sells
+  if (sells.length) {
+    html += '<div style="font-size:.75rem;color:var(--amber);font-weight:700;margin:.5rem 0;text-transform:uppercase">💰 Pending Sells</div>';
+    sells.forEach(s => {
+      html += `<div class="pending-item">
+        <div class="info">
+          <div class="label">${escHtml(teamName(s.teamId))} wants to sell a <strong>${escHtml(s.card)}</strong></div>
+          <div class="detail">${s.points || '?'} points — ${formatTime(s.timestamp)}</div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-sm btn-primary" onclick="confirmSell('${s.teamId}','${s.card}')">✓ Confirm</button>
+          <button class="btn btn-sm btn-danger" onclick="rejectSell('${s.teamId}','${s.card}')">✗ Reject</button>
+        </div>
+      </div>`;
+    });
+  }
+
+  // Productions
+  if (productions.length) {
+    html += '<div style="font-size:.75rem;color:var(--cyan);font-weight:700;margin:.5rem 0;text-transform:uppercase">🏭 Pending Productions</div>';
+    productions.forEach(p => {
+      const bonusText = p.bonus ? ` (+${p.bonus} domestic bonus)` : '';
+      html += `<div class="pending-item">
+        <div class="info">
+          <div class="label">${escHtml(teamName(p.teamId))} wants to produce a <strong>${escHtml(p.card)}</strong>${bonusText}</div>
+          <div class="detail">${formatTime(p.timestamp)}</div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-sm btn-primary" onclick="confirmProduce('${p.teamId}','${p.card}')">✓ Confirm</button>
+          <button class="btn btn-sm btn-danger" onclick="rejectProduce('${p.teamId}','${p.card}')">✗ Reject</button>
+        </div>
+      </div>`;
+    });
+  }
+
+  // Ready trades (both accepted)
+  if (readyTrades.length) {
+    html += '<div style="font-size:.75rem;color:var(--green);font-weight:700;margin:.5rem 0;text-transform:uppercase">🤝 Trades Ready to Confirm</div>';
+    readyTrades.forEach(tr => {
+      html += `<div class="pending-item trade-ready">
+        <div class="info">
+          <div class="label">${escHtml(teamName(tr.fromTeam))} offers <strong>${escHtml(tr.offerCard)}</strong> to ${escHtml(teamName(tr.toTeam))} for <strong>${escHtml(tr.requestCard)}</strong></div>
+          <div class="detail">Both teams accepted — awaiting physical card exchange</div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-sm btn-primary" onclick="confirmTrade('${tr.id}')">✓ Confirm Trade</button>
+          <button class="btn btn-sm btn-danger" onclick="rejectTrade('${tr.id}')">✗ Reject</button>
+        </div>
+      </div>`;
+    });
+  }
+
+  // Pending trade proposals (informational)
+  if (pendingTrades.length) {
+    html += '<div style="font-size:.75rem;color:var(--muted);font-weight:700;margin:.5rem 0;text-transform:uppercase">📨 Trade Proposals (Awaiting Response)</div>';
+    pendingTrades.forEach(tr => {
+      html += `<div class="pending-item trade-pending">
+        <div class="info">
+          <div class="label">${escHtml(teamName(tr.fromTeam))} → ${escHtml(teamName(tr.toTeam))}: ${escHtml(tr.offerCard)} for ${escHtml(tr.requestCard)}</div>
+          <div class="detail">Status: ${escHtml(tr.status || 'pending')}</div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-sm btn-danger" onclick="rejectTrade('${tr.id}')" title="Override reject">✗</button>
+        </div>
+      </div>`;
+    });
+  }
+
+  body.innerHTML = html;
+}
+
+async function confirmSell(teamId, card) {
+  const d = await apiCall('confirmsell', { teamId: String(teamId), card });
+  if (d && d.success) { toast(`Sell confirmed: ${teamName(teamId)} sold ${card} for ${d.pointsAwarded || '?'} pts`); fetchDashboard(); }
+  else toast((d && d.error) || 'Confirm sell failed', 'error');
+}
+
+async function rejectSell(teamId, card) {
+  // Use adjusthand to return the card if needed, or a reject endpoint
+  toast('Sell rejected — notify the team', 'info');
+  fetchDashboard();
+}
+
+async function confirmProduce(teamId, card) {
+  const d = await apiCall('confirmproduce', { teamId: String(teamId), card });
+  if (d && d.success) { toast(`Production confirmed: ${teamName(teamId)} produced ${card}${d.bonusApplied ? ' (+bonus)' : ''}`); fetchDashboard(); }
+  else toast((d && d.error) || 'Confirm production failed', 'error');
+}
+
+async function rejectProduce(teamId, card) {
+  toast('Production rejected — notify the team', 'info');
+  fetchDashboard();
+}
+
+async function confirmTrade(proposalId) {
+  const d = await apiCall('confirmtrade', { proposalId: String(proposalId) });
+  if (d && d.success) { toast('Trade confirmed — cards exchanged'); fetchDashboard(); }
+  else toast((d && d.error) || 'Confirm trade failed', 'error');
+}
+
+async function rejectTrade(proposalId) {
+  const d = await apiCall('rejecttrade', { proposalId: String(proposalId) });
+  if (d && d.success) { toast('Trade rejected'); fetchDashboard(); }
+  else toast((d && d.error) || 'Reject trade failed', 'error');
+}
+
+// ─── PHASE CONTROLS ───
+function renderPhaseControls(gs) {
+  const el = document.getElementById('phaseControls');
+  let html = '';
+
+  // Trade toggle
+  html += phaseToggle('Trading', gs.tradeOpen, '🤝', () => {
+    setPhase({ tradeOpen: !gs.tradeOpen });
+  });
+
+  // Domestic interests
+  html += phaseToggle('Domestic Interests', gs.domesticInterests, '🏭', () => {
+    setPhase({ domesticInterests: !gs.domesticInterests });
+  }, gs.domesticInterests ? `+${gs.domesticBonus || 2} for domestic good production` : null);
+
+  // Rivalries
+  html += phaseToggle('Rivalries', gs.rivalries, '⚔️', () => {
+    setPhase({ rivalries: !gs.rivalries });
+  }, gs.rivalries ? `Country 1 vs 2, Country 3 vs 4 (−${gs.rivalryPenalty || 2} penalty)` : null);
+
+  // Pariah
+  html += `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:.75rem;margin-bottom:.5rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+      <span style="font-size:.85rem;font-weight:600">🚫 Pariah State</span>
+      <span style="font-size:.7rem;padding:.15rem .5rem;border-radius:10px;background:${gs.pariahTeam ? '#3a1a1a' : 'var(--bg3)'};color:${gs.pariahTeam ? 'var(--red)' : 'var(--muted)'}">${gs.pariahTeam ? 'ACTIVE' : 'OFF'}</span>
+    </div>
+    <div style="display:flex;gap:.35rem;align-items:center;flex-wrap:wrap">
+      <select id="pariahSelect" style="background:var(--bg3);border:1px solid var(--border);color:var(--white);padding:.3rem .5rem;border-radius:4px;font-size:.8rem">
+        <option value="">None</option>
+        ${[1,2,3,4,5].map(i => `<option value="${i}" ${String(gs.pariahTeam) === String(i) ? 'selected' : ''}>${teamName(i)}</option>`).join('')}
+      </select>
+      <button class="btn btn-sm btn-ghost" onclick="setPariahState()">Apply</button>
+    </div>
+    ${gs.pariahTeam ? `<div style="font-size:.7rem;color:var(--red);margin-top:.35rem">−${gs.pariahPenalty || 3} penalty per round for ${teamName(gs.pariahTeam)}</div>` : ''}
+  </div>`;
+
+  // Sanctions
+  html += `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:.75rem;margin-bottom:.5rem">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:.85rem;font-weight:600">⚖️ Sanctions</span>
+      <button class="btn btn-sm btn-ghost" onclick="openSanctions()">Manage</button>
+    </div>
+    ${renderSanctionsSummary(gs.sanctions)}
+  </div>`;
+
+  // Divider
+  html += '<hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">';
+
+  // Setup / Reset
+  html += `<button class="btn btn-amber" style="width:100%;margin-bottom:.5rem" onclick="confirmAction('Setup Game','Re-initialize the game? This regenerates tokens.',setupGame)">🔧 Setup Game</button>`;
+  html += `<button class="btn btn-danger" style="width:100%" onclick="confirmAction('Reset Game','RESET all data? This cannot be undone!',resetGame)">⚠️ Reset Game</button>`;
+
+  el.innerHTML = html;
+}
+
+function phaseToggle(label, active, icon, onclick, detail) {
+  return `<div style="background:var(--bg2);border:1px solid ${active ? 'var(--green)' : 'var(--border)'};border-radius:6px;padding:.75rem;margin-bottom:.5rem;cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="(${onclick.toString()})()">
+    <div>
+      <span style="font-size:.85rem;font-weight:600">${icon} ${label}</span>
+      ${detail ? `<div style="font-size:.7rem;color:var(--muted);margin-top:.2rem">${detail}</div>` : ''}
+    </div>
+    <div style="width:42px;height:22px;border-radius:11px;background:${active ? 'var(--green)' : 'var(--bg4)'};position:relative;transition:background .2s;flex-shrink:0">
+      <div style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:2px;${active ? 'right:2px' : 'left:2px'};transition:all .2s"></div>
+    </div>
+  </div>`;
+}
+
+function renderSanctionsSummary(sanctions) {
+  if (!sanctions || !Object.keys(sanctions).length) return '<div style="font-size:.7rem;color:var(--muted);margin-top:.35rem">No active sanctions</div>';
+  const pairs = new Set();
+  for (const [from, tos] of Object.entries(sanctions)) {
+    for (const to of tos) {
+      const key = [from, to].sort().join('-');
+      pairs.add(key);
+    }
+  }
+  let s = '<div style="margin-top:.35rem">';
+  pairs.forEach(p => {
+    const [a, b] = p.split('-');
+    s += `<div style="font-size:.7rem;color:var(--red);margin:.1rem 0">🚫 ${teamName(a)} ↔ ${teamName(b)}</div>`;
+  });
+  s += '</div>';
+  return s;
+}
+
+async function setPariahState() {
+  const val = document.getElementById('pariahSelect').value;
+  const d = await apiCall('setphase', { pariahTeam: val || null });
+  if (d && d.success) { toast(val ? `Pariah state: ${teamName(val)}` : 'Pariah state removed'); fetchDashboard(); }
+  else toast((d && d.error) || 'Failed', 'error');
+}
+
+// ─── GAME ACTIONS ───
+async function advanceRound() {
+  const d = await apiCall('advanceround');
+  if (d && d.success) {
+    let msg = `Advanced to Round ${d.round}`;
+    if (d.penalties && d.penalties.length) {
+      msg += ' — Penalties: ' + d.penalties.map(p => `${teamName(p.teamId)} ${p.amount} (${p.reason})`).join(', ');
+    }
+    toast(msg);
+    fetchDashboard();
+  } else toast((d && d.error) || 'Failed to advance round', 'error');
+}
+
+async function endGame() {
+  const d = await apiCall('endgame');
+  if (d && d.success) {
+    toast('Game ended!');
+    if (d.finalScoreboard) showFinalScoreboard(d.finalScoreboard);
+    fetchDashboard();
+  } else toast((d && d.error) || 'Failed to end game', 'error');
+}
+
+async function setupGame() {
+  const d = await apiCall('setupgame');
+  if (d && d.success) {
+    toast('Game setup complete — tokens regenerated');
+    fetchDashboard();
+  } else toast((d && d.error) || 'Setup failed', 'error');
+}
+
+async function resetGame() {
+  const d = await apiCall('resetgame');
+  if (d && d.success) { toast('Game reset'); fetchDashboard(); }
+  else toast((d && d.error) || 'Reset failed', 'error');
+}
+
+// ─── FINAL SCOREBOARD ───
+function showFinalScoreboard(teams) {
+  const sorted = [...teams].sort((a, b) => (b.score || 0) - (a.score || 0));
+  const el = document.getElementById('scoreboardEntries');
+  const classes = ['gold', 'silver', 'bronze', 'other', 'other'];
+  const medals = ['🥇', '🥈', '🥉', '4.', '5.'];
+  el.innerHTML = sorted.map((t, i) => `
+    <div class="scoreboard-entry ${classes[i] || 'other'}">
+      <span class="pos">${medals[i] || (i+1)+'.'}</span>
+      <span class="name">${escHtml(t.name || 'Team '+t.id)}</span>
+      <span>${t.score || 0} pts</span>
+    </div>
+  `).join('');
+  document.getElementById('finalScoreboard').classList.add('active');
+}
+
+// ─── LOG ───
+function renderLog(log) {
+  const body = document.getElementById('logBody');
+  if (!log.length) { body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:1rem">No log entries</td></tr>'; return; }
+  body.innerHTML = log.slice(-50).reverse().map(l => `
+    <tr>
+      <td>${formatTime(l.timestamp)}</td>
+      <td>${l.round || ''}</td>
+      <td>${escHtml(teamName(l.teamId))}</td>
+      <td>${escHtml(l.action || '')}</td>
+      <td>${escHtml(l.details || '')}</td>
+      <td style="color:${(l.pointsChange||0) > 0 ? 'var(--green)' : (l.pointsChange||0) < 0 ? 'var(--red)' : 'var(--muted)'}">${l.pointsChange ? (l.pointsChange > 0 ? '+' : '') + l.pointsChange : '—'}</td>
+    </tr>
+  `).join('');
+}
+
+// ─── HISTORY ───
+function renderHistory(history) {
+  const body = document.getElementById('historyBody');
+  if (!history.length) { body.innerHTML = '<div class="empty">No history yet</div>'; return; }
+  body.innerHTML = history.map(h => `
+    <details class="history-round">
+      <summary>Round ${h.round}</summary>
+      <div class="summary-text">${escHtml(h.summary || 'No summary')}</div>
+    </details>
+  `).join('');
+}
+
+// ─── TEAM LINKS ───
+function renderTeamLinks(teams, gs) {
+  const body = document.getElementById('teamLinksBody');
+  if (!teams.length) { body.innerHTML = '<div class="empty">No teams</div>'; return; }
+
+  // Determine base URL
+  const baseUrl = window.location.href.replace(/facilitator\.html.*/, 'student.html');
+
+  let html = '';
+  teams.forEach(t => {
+    const token = (gs.tokens && gs.tokens[t.id]) || t.token || '???';
+    const url = baseUrl + '?token=' + encodeURIComponent(token);
+    const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent(url);
+
+    html += `<div class="team-link-item">
+      <div class="qr"><img src="${qrUrl}" width="60" height="60" alt="QR" loading="lazy"></div>
+      <div class="link-info">
+        <div class="name">${escHtml(t.name || 'Team '+t.id)}</div>
+        <div class="url">${escHtml(url)}</div>
+      </div>
+      <button class="copy-btn" onclick="copyToClipboard('${escAttr(url)}', this)">📋 Copy</button>
+    </div>`;
+  });
+
+  html += `<button class="btn btn-amber" style="width:100%;margin-top:.5rem" onclick="confirmAction('Regenerate Tokens','Re-run setup to regenerate all team tokens?',setupGame)">🔄 Regenerate All Tokens</button>`;
+
+  body.innerHTML = html;
+}
+
+function copyToClipboard(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => { btn.textContent = '📋 Copy'; }, 2000);
+  }).catch(() => toast('Copy failed', 'error'));
+}
+
+// ─── UTIL ───
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+function escAttr(s) {
+  return (s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+function formatTime(ts) {
+  if (!ts) return '—';
+  try {
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) return String(ts).slice(11, 19) || ts;
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  } catch { return String(ts); }
+}
+</script>
+</body>
+</html>
