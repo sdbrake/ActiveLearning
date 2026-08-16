@@ -68,6 +68,15 @@ a{color:var(--cyan);text-decoration:none}
 #sanctionsBox button{padding:.6rem 1.5rem;border-radius:6px;border:none;font-weight:700;cursor:pointer;font-size:.9rem}
 #sanctionsBox .btn-save{background:var(--green);color:#000}
 #sanctionsBox .btn-cancel{background:var(--bg4);color:var(--white)}
+#rivalModal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:7100;display:none;align-items:center;justify-content:center}
+#rivalModal.active{display:flex}
+#rivalBox{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:2rem;max-width:450px;width:95%}
+#rivalBox h3{color:var(--amber);margin-bottom:1rem;text-align:center}
+#rivalGrid{display:flex;flex-direction:column;gap:.4rem;margin-bottom:1.5rem}
+#rivalBox .btn-row{display:flex;gap:1rem;justify-content:center}
+#rivalBox button{padding:.6rem 1.5rem;border-radius:6px;border:none;font-weight:700;cursor:pointer;font-size:.9rem}
+#rivalBox .btn-save{background:var(--green);color:#000}
+#rivalBox .btn-cancel{background:var(--bg4);color:var(--white)}
 
 /* ─── MAIN LAYOUT ─── */
 #app{display:none}
@@ -240,22 +249,33 @@ a{color:var(--cyan);text-decoration:none}
   </div>
 </div>
 
+<!-- Rival Editor Modal -->
+<div id="rivalModal">
+  <div id="rivalBox">
+    <h3>⚔️ Set Rivals</h3>
+    <p style="text-align:center;color:var(--muted);font-size:.8rem;margin-bottom:1rem">Check any country pairs that are rivals. Leave empty to disable rivalries.</p>
+    <div class="sanctions-grid" id="rivalGrid"></div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeRivalEditor()">Cancel</button>
+      <button class="btn-save" onclick="saveRivalEditor()">Save Rivals</button>
+    </div>
+  </div>
+</div>
+
 <!-- Main App -->
 <div id="app">
   <!-- Top Bar -->
   <div class="topbar">
     <div class="logo">🃏 Trading Cards</div>
-    <div class="round-badge" id="roundBadge">Round —</div>
     <div class="phase-badge" id="phaseBadge">Loading…</div>
     <div class="spacer"></div>
     <div class="actions">
-      <button class="btn btn-amber" onclick="confirmAction('Advance Round','Move to the next round? End-of-round penalties will be applied.',advanceRound)">⏭ Advance Round</button>
+      <button class="btn btn-amber" id="startBtn" onclick="startGame()">▶ Start Game</button>
       <button class="btn btn-danger" onclick="confirmAction('End Game','End the game and show final scoreboard?',endGame)">🏁 End Game</button>
     </div>
   </div>
 
-  <!-- Phase Stepper -->
-  <div class="phase-stepper" id="phaseStepper"></div>
+  <!-- Phase Controls (toggles panel) -->
 
   <!-- Main Grid -->
   <div class="main-grid">
@@ -294,8 +314,9 @@ a{color:var(--cyan);text-decoration:none}
     <div class="sidebar">
       <!-- Phase Controls -->
       <div class="section">
-        <div class="section-header"><h2>🎛 Phase Controls</h2></div>
+        <div class="section-header"><h2>🎛 Game Rules</h2></div>
         <div class="section-body" id="phaseControls"></div>
+        <div class="penalty-box" id="penaltyBox"></div>
       </div>
 
       <!-- Team Links -->
@@ -478,14 +499,17 @@ async function saveSanctions() {
 // ─── RENDER DASHBOARD ───
 function renderDashboard(d) {
   const gs = d.gameState || {};
-  // Top bar
-  document.getElementById('roundBadge').textContent = 'Round ' + (gs.round || '—');
-  document.getElementById('phaseBadge').textContent = (gs.phase || 'unknown').toUpperCase();
+  // Top bar — show game state (setup / running / ended)
+  const phaseLabel = { setup: 'Setup', running: 'Running', ended: 'Game Over' }[gs.phase] || (gs.phase || 'unknown');
+  document.getElementById('phaseBadge').textContent = phaseLabel.toUpperCase();
+  // Show/hide the Start button
+  const startBtn = document.getElementById('startBtn');
+  if (startBtn) startBtn.style.display = gs.phase === 'setup' ? 'inline-block' : 'none';
 
-  renderPhaseStepper(gs);
   renderTeams(d.teams || [], gs);
   renderPending(d.pendingSells || [], d.pendingProductions || [], d.tradeProposals || []);
   renderPhaseControls(gs);
+  renderPenaltyBox(gs);
   renderLog(d.log || []);
   renderHistory(d.history || []);
   renderTeamLinks(d.teams || [], gs);
@@ -496,44 +520,16 @@ function renderDashboard(d) {
   }
 }
 
-// ─── PHASE STEPPER ───
-function renderPhaseStepper(gs) {
-  const el = document.getElementById('phaseStepper');
-  const phase = gs.phase || '';
-  const phaseMap = {
-    'setup': 0, 'autarky': 1, 'trade': 2, 'domestic': 3, 'rivalries': 4, 'pariah': 5, 'ended': 6
-  };
-  const currentIdx = phaseMap[phase] ?? -1;
-
-  let html = '';
-  PHASES.forEach((p, i) => {
-    if (i > 0) html += '<span class="phase-arrow">→</span>';
-    const cls = i === currentIdx ? 'active' : (i < currentIdx ? 'completed' : '');
-    html += `<div class="phase-step ${cls}" onclick="jumpToPhase('${p.id}')">${p.icon} ${p.label}</div>`;
-  });
-  el.innerHTML = html;
-}
-
-function jumpToPhase(phaseId) {
-  const phaseConfig = {
-    'setup': () => confirmAction('Run Setup', 'Initialize/reset game setup? This regenerates tokens.', setupGame),
-    'autarky': () => setPhase({ phase: 'autarky', tradeOpen: false, domesticInterests: false }),
-    'trade': () => setPhase({ phase: 'trade', tradeOpen: true, domesticInterests: false }),
-    'domestic': () => setPhase({ phase: 'domestic', tradeOpen: true, domesticInterests: true }),
-    'rivalries': () => setPhaseWithConfirm('Activate Rivalries', 'Activate rivalry penalties?', { phase: 'rivalries', tradeOpen: true, domesticInterests: true }),
-    'pariah': () => setPhaseWithConfirm('Declare Pariah State', 'Activate pariah state penalties?', { phase: 'pariah', tradeOpen: true, domesticInterests: true }),
-    'ended': () => confirmAction('End Game', 'End the game?', endGame)
-  };
-  if (phaseConfig[phaseId]) phaseConfig[phaseId]();
-}
-
-function setPhaseWithConfirm(title, msg, params) {
-  confirmAction(title, msg, () => setPhase(params));
+// Start the game: moves phase from setup -> running so teams leave the waiting screen
+async function startGame() {
+  const d = await apiCall('setphase', { phase: 'running' });
+  if (d && d.success) { toast('Game started!'); fetchDashboard(); }
+  else toast((d && d.error) || 'Failed to start', 'error');
 }
 
 async function setPhase(params) {
   const d = await apiCall('setphase', params);
-  if (d && d.success) { toast('Phase updated'); fetchDashboard(); }
+  if (d && d.success) { toast('Rules updated'); fetchDashboard(); }
   else toast((d && d.error) || 'Failed', 'error');
 }
 
@@ -780,28 +776,26 @@ async function rejectTrade(proposalId) {
   else toast((d && d.error) || 'Reject trade failed', 'error');
 }
 
-// ─── PHASE CONTROLS ───
+// ─── PHASE CONTROLS (rule toggles) ───
+// Toggles call a real API action on click. The inline-onclick closure bug
+// (arrow capturing `gs` evaluated as global scope) is avoided by using
+// data-rule attributes + a delegated listener attached after render.
 function renderPhaseControls(gs) {
   const el = document.getElementById('phaseControls');
   let html = '';
 
   // Trade toggle
-  html += phaseToggle('Trading', gs.tradeOpen, '🤝', () => {
-    setPhase({ tradeOpen: !gs.tradeOpen });
-  });
-
+  html += phaseToggle('Trading', gs.tradeOpen, '🤝', 'tradeOpen');
   // Domestic interests
-  html += phaseToggle('Domestic Interests', gs.domesticInterests, '🏭', () => {
-    setPhase({ domesticInterests: !gs.domesticInterests });
-  }, gs.domesticInterests ? `+${gs.domesticBonus || 2} for domestic good production` : null);
-
+  html += phaseToggle('Domestic Interests', gs.domesticInterests, '🏭', 'domesticInterests',
+    gs.domesticInterests ? `+${gs.domesticBonus || 2} for domestic good production` : null);
   // Rivalries
-  html += phaseToggle('Rivalries', !!gs.rivalries, '⚔️', () => {
-    setPhase({ rivalries: !gs.rivalries });
-  }, gs.rivalries ? `Country 1 vs 2, Country 3 vs 4 (−${gs.rivalryPenalty || 2} penalty)` : null);
+  html += phaseToggle('Rivalries', !!gs.rivalries, '⚔️', 'rivalries',
+    gs.rivalries ? friendlyRivals(gs.rivalries) + ` (−${gs.rivalryPenalty || 2} penalty)` : null);
+  html += `<button class="btn btn-sm btn-ghost" style="width:100%;margin:-.25rem 0 .5rem" onclick="openRivalEditor()">⚔️ Edit Rival Pairs</button>`;
 
   // Pariah
-  html += `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:.75rem;margin-bottom:.5rem">
+  html += `<div style="background:var(--bg2);border:1px solid ${gs.pariahTeam ? 'var(--red)' : 'var(--border)'};border-radius:6px;padding:.75rem;margin-bottom:.5rem">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
       <span style="font-size:.85rem;font-weight:600">🚫 Pariah State</span>
       <span style="font-size:.7rem;padding:.15rem .5rem;border-radius:10px;background:${gs.pariahTeam ? '#3a1a1a' : 'var(--bg3)'};color:${gs.pariahTeam ? 'var(--red)' : 'var(--muted)'}">${gs.pariahTeam ? 'ACTIVE' : 'OFF'}</span>
@@ -813,7 +807,7 @@ function renderPhaseControls(gs) {
       </select>
       <button class="btn btn-sm btn-ghost" onclick="setPariahState()">Apply</button>
     </div>
-    ${gs.pariahTeam ? `<div style="font-size:.7rem;color:var(--red);margin-top:.35rem">−${gs.pariahPenalty || 3} penalty per round for ${teamName(gs.pariahTeam)}</div>` : ''}
+    ${gs.pariahTeam ? `<div style="font-size:.7rem;color:var(--red);margin-top:.35rem">Outscore ${teamName(gs.pariahTeam)} or lose ${gs.pariahPenalty || 3} points</div>` : ''}
   </div>`;
 
   // Sanctions
@@ -833,10 +827,19 @@ function renderPhaseControls(gs) {
   html += `<button class="btn btn-danger" style="width:100%" onclick="confirmAction('Reset Game','RESET all data? This cannot be undone!',resetGame)">⚠️ Reset Game</button>`;
 
   el.innerHTML = html;
+
+  // Attach toggle listeners (delegated) using data-rule
+  el.querySelectorAll('[data-rule]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const rule = btn.getAttribute('data-rule');
+      const key = btn.getAttribute('data-key');
+      setPhase({ [rule]: !gs[rule] });
+    });
+  });
 }
 
-function phaseToggle(label, active, icon, onclick, detail) {
-  return `<div style="background:var(--bg2);border:1px solid ${active ? 'var(--green)' : 'var(--border)'};border-radius:6px;padding:.75rem;margin-bottom:.5rem;cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="(${onclick.toString()})()">
+function phaseToggle(label, active, icon, rule, detail) {
+  return `<div data-rule="${rule}" data-key="${rule}" style="background:var(--bg2);border:1px solid ${active ? 'var(--green)' : 'var(--border)'};border-radius:6px;padding:.75rem;margin-bottom:.5rem;cursor:pointer;display:flex;align-items:center;justify-content:space-between">
     <div>
       <span style="font-size:.85rem;font-weight:600">${icon} ${label}</span>
       ${detail ? `<div style="font-size:.7rem;color:var(--muted);margin-top:.2rem">${detail}</div>` : ''}
@@ -845,6 +848,11 @@ function phaseToggle(label, active, icon, onclick, detail) {
       <div style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:2px;${active ? 'right:2px' : 'left:2px'};transition:all .2s"></div>
     </div>
   </div>`;
+}
+
+function friendlyRivals(rivalries) {
+  if (!rivalries || !rivalries.length) return 'No rivals';
+  return rivalries.map(p => `${teamName(p[0])} vs ${teamName(p[1])}`).join(', ');
 }
 
 function renderSanctionsSummary(sanctions) {
@@ -872,17 +880,94 @@ async function setPariahState() {
   else toast((d && d.error) || 'Failed', 'error');
 }
 
-// ─── GAME ACTIONS ───
-async function advanceRound() {
-  const d = await apiCall('advanceround');
-  if (d && d.success) {
-    let msg = `Advanced to Round ${d.round}`;
-    if (d.penalties && d.penalties.length) {
-      msg += ' — Penalties: ' + d.penalties.map(p => `${teamName(p.teamId)} ${p.amount} (${p.reason})`).join(', ');
+// ─── RIVAL REASSIGNMENT ───
+// Open modal to pick any rival pairs (country grid). Sends the chosen pairs
+// as array-of-pairs [[a,b],...] to setphase (stored canonically).
+function openRivalEditor() {
+  const overlay = document.getElementById('rivalModal');
+  const grid = document.getElementById('rivalGrid');
+  const current = (lastData && lastData.gameState && lastData.gameState.rivalries) || [];
+
+  let html = '';
+  for (let a = 1; a <= 5; a++) {
+    for (let b = a + 1; b <= 5; b++) {
+      const on = current.some(p => (p[0] === a && p[1] === b) || (p[0] === b && p[1] === a));
+      html += `
+        <label class="rival-pick" style="display:flex;align-items:center;gap:.5rem;padding:.4rem .6rem;border-radius:6px;border:1px solid ${on ? 'var(--green)' : 'var(--border)'};cursor:pointer;background:${on ? 'rgba(39,174,96,0.12)' : 'var(--bg2)'}">
+          <input type="checkbox" value="${a}-${b}" ${on ? 'checked' : ''} style="accent-color:var(--green)">
+          <span style="font-size:.8rem">${teamName(a)} ↔ ${teamName(b)}</span>
+        </label>`;
     }
-    toast(msg);
-    fetchDashboard();
-  } else toast((d && d.error) || 'Failed to advance round', 'error');
+  }
+  grid.innerHTML = html || '<div class="empty">No teams</div>';
+  overlay.classList.add('active');
+}
+
+async function saveRivalEditor() {
+  const checked = Array.from(document.querySelectorAll('#rivalGrid input[type=checkbox]:checked'))
+    .map(c => c.value.split('-').map(n => parseInt(n, 10)));
+  const closing = () => { closeRivalEditor(); fetchDashboard(); };
+  if (checked.length === 0) {
+    // Turning rivalries off entirely
+    setPhase({ rivalries: false }).then(closing);
+    return;
+  }
+  setPhase({ rivalries: checked }).then(closing);
+}
+
+function closeRivalEditor() {
+  const overlay = document.getElementById('rivalModal');
+  if (overlay) overlay.classList.remove('active');
+}
+
+// ─── PENALTY CALCULATOR ───
+// Preview + apply current rivalry/pariah penalties without any round counter.
+async function renderPenaltyBox(gs) {
+  const box = document.getElementById('penaltyBox');
+  if (!box) return;
+  // Only meaningful once the game is running
+  if (gs.phase === 'setup' || gs.phase === 'ended') {
+    box.innerHTML = '';
+    return;
+  }
+  // If a penalty preview/result is already on screen, keep it so the 3s poll
+  // doesn't wipe the facilitator's active interaction (same gotcha as the modal).
+  const existing = box.querySelector('#penaltyResult');
+  const hadResult = existing && existing.innerHTML.trim().length > 0;
+  const resultHtml = hadResult ? existing.outerHTML : '<div id="penaltyResult" style="font-size:.75rem;margin-top:.4rem"></div>';
+  box.innerHTML = `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:.75rem;margin-top:.5rem">
+    <div style="font-size:.8rem;font-weight:700;margin-bottom:.4rem">⚖️ Penalty Calculator</div>
+    <div style="font-size:.7rem;color:var(--muted);margin-bottom:.5rem">Preview & apply rivalry/pariah penalties to current scores.</div>
+    <button class="btn btn-sm btn-ghost" style="width:100%;margin-bottom:.35rem" onclick="doPreviewPenalties()">👁 Preview Penalties</button>
+    ${resultHtml}
+  </div>`;
+}
+
+async function doPreviewPenalties() {
+  const resultBox = document.getElementById('penaltyResult');
+  const d = await apiCall('previewpenalties');
+  if (!d || !d.success) { resultBox.innerHTML = `<span style="color:var(--red)">${(d && d.error) || 'Failed'}</span>`; return; }
+  if (!d.penalties.length) {
+    resultBox.innerHTML = '<span style="color:var(--muted)">No penalties — no rivalries/pariah active, or nobody losing.</span>';
+    return;
+  }
+  let rows = '';
+  d.penalties.forEach(p => {
+    rows += `<div style="color:var(--red);margin:.15rem 0">−${p.amount} <strong>${escHtml(p.teamName)}</strong> — ${escHtml(p.reason)}</div>`;
+  });
+  resultBox.innerHTML = rows + `<button class="btn btn-sm btn-danger" style="width:100%;margin-top:.5rem" onclick="doApplyPenalties()">Apply ${d.penalties.length} Penalty(ies)</button>`;
+}
+
+async function doApplyPenalties() {
+  const resultBox = document.getElementById('penaltyResult');
+  const d = await apiCall('applypenalties');
+  if (!d || !d.success) { resultBox.innerHTML = `<span style="color:var(--red)">${(d && d.error) || 'Failed'}</span>`; return; }
+  if (!d.applied.length) { resultBox.innerHTML = '<span style="color:var(--muted)">No penalties applied.</span>'; return; }
+  let rows = '';
+  d.applied.forEach(p => { rows += `<div style="color:var(--red);margin:.15rem 0">−${p.amount} <strong>${escHtml(p.teamName)}</strong></div>`; });
+  resultBox.innerHTML = rows;
+  toast(`Applied ${d.applied.length} penalty(ies)`);
+  fetchDashboard();
 }
 
 async function endGame() {

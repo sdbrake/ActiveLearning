@@ -721,7 +721,8 @@ function formatPhase() {
   const p = gameState.phase;
   if (p === 'ended') return 'Game Over';
   if (p === 'setup') return 'Setup';
-  return p.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim();
+  const labels = { running: 'In Progress', trade: 'Trading', domestic: 'Domestic Interests' };
+  return labels[p] || p.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim();
 }
 
 function renderHand() {
