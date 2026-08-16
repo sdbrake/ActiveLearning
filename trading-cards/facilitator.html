@@ -796,7 +796,7 @@ function renderPhaseControls(gs) {
   }, gs.domesticInterests ? `+${gs.domesticBonus || 2} for domestic good production` : null);
 
   // Rivalries
-  html += phaseToggle('Rivalries', gs.rivalries, '⚔️', () => {
+  html += phaseToggle('Rivalries', !!gs.rivalries, '⚔️', () => {
     setPhase({ rivalries: !gs.rivalries });
   }, gs.rivalries ? `Country 1 vs 2, Country 3 vs 4 (−${gs.rivalryPenalty || 2} penalty)` : null);
 

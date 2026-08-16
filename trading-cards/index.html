@@ -440,8 +440,10 @@ async function fetchTeamInfo() {
   if (data.success) {
     teamData = data.team;
     gameState = data.gameState;
-    if (data.pendingSell) pendingSell = data.pendingSell;
-    if (data.pendingProduce) pendingProduce = data.pendingProduce;
+    // Always assign — clears the "bring your card to the facilitator" prompt
+    // the moment the facilitator confirms the action.
+    pendingSell = data.pendingSell || null;
+    pendingProduce = data.pendingProduce || null;
     render();
     updateBanner();
   }
@@ -585,38 +587,35 @@ function updateBanner() {
   let text = '';
   let cls = '';
 
+  // Priority: ended > rivalry > pariah > domestic > trade > (base)
   if (gameState.phase === 'ended') {
     text = '🏆 Game Over — Final Scores';
     cls = 'ended';
-  } else if (gameState.tradeOpen) {
-    text = '🤝 Trade Window Open';
-    cls = 'trade-open';
-  } else if (gameState.domesticInterests && teamData) {
-    text = '🏛 Domestic Interests Active — ' + (teamData.domesticGood || '') + ' bonus!';
-    cls = 'domestic';
-  }
-
-  // Rivalry / pariah override for a moment
-  if (gameState.rivalries && gameState.rivalries.length > 0 && teamData) {
-    const rival = getMyRival();
-    if (rival && lastBanner !== 'rivalry-shown') {
-      text = '⚔️ Rivalry! You vs ' + getTeamName(rival) + ' — outscore them!';
-      cls = 'rivalry';
-      lastBanner = 'rivalry-shown';
-      banner.textContent = text;
-      banner.className = 'show ' + cls;
-      setTimeout(() => updateBanner(), 6000);
-      return;
+  } else if (gameState.pariahTeam) {
+    let p = '';
+    if (gameState.pariahTeam && String(gameState.pariahTeam) === String(teamData.id)) {
+      p = '🚫 You are the pariah state this round!';
+    } else {
+      p = '🚫 ' + getTeamName(gameState.pariahTeam) + ' is the pariah state — outscore them or lose ' +
+         (gameState.pariahPenalty || 4) + ' points!';
     }
-  }
-  if (gameState.pariahTeam && lastBanner !== 'pariah-shown') {
-    text = '⚠️ ' + getTeamName(gameState.pariahTeam) + ' is a Pariah State!';
+    text = p;
     cls = 'pariah';
-    lastBanner = 'pariah-shown';
-    banner.textContent = text;
-    banner.className = 'show ' + cls;
-    setTimeout(() => updateBanner(), 6000);
-    return;
+  } else if (gameState.rivalries && gameState.rivalries.length && teamData) {
+    const rival = getMyRival();
+    if (rival) {
+      text = '⚔️ Rivalry! If ' + getTeamName(rival) + ' scores more points than you, you lose ' +
+             (gameState.rivalryPenalty || 4) + ' points!';
+      cls = 'rivalry';
+    }
+  } else if (gameState.domesticInterests && teamData) {
+    text = '🏛 Your domestic interests will pay +' + (gameState.domesticBonus || 2) +
+           ' point' + ((gameState.domesticBonus || 2) !== 1 ? 's' : '') +
+           ' if you produce a ' + (teamData.domesticGood || '') + ' this round!';
+    cls = 'domestic';
+  } else if (gameState.tradeOpen) {
+    text = '🤝 Trade Window Open — negotiate and exchange cards!';
+    cls = 'trade-open';
   }
 
   if (text) {
@@ -624,7 +623,6 @@ function updateBanner() {
     banner.className = 'show ' + cls;
   } else {
     banner.className = '';
-    lastBanner = '';
   }
 }
 
